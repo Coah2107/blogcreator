@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_blogcreator_note_reader,blogcreator.note.reader,model_blogcreator_note,blogcreator.group_blogcreator_reader,1,0,0,0
+access_blogcreator_note_author,blogcreator.note.author,model_blogcreator_note,blogcreator.group_blogcreator_author,1,1,1,1
+access_blogcreator_note_manager,blogcreator.note.manager,model_blogcreator_note,blogcreator.group_blogcreator_manager,1,1,1,1

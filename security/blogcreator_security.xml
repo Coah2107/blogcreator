@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Tạo nhóm quyền -->
+    <record id="module_category_blogcreator" model="ir.module.category">
+        <field name="name">Blog Creator</field>
+        <field name="description">Quản lý quyền cho module Blog Creator</field>
+        <field name="sequence">100</field>
+    </record>
+
+    <!-- Nhóm người đọc -->
+    <record id="group_blogcreator_reader" model="res.groups">
+        <field name="name">Reader</field>
+        <field name="category_id" ref="module_category_blogcreator"/>
+    </record>
+
+    <!-- Nhóm người viết -->
+    <record id="group_blogcreator_author" model="res.groups">
+        <field name="name">Author</field>
+        <field name="category_id" ref="module_category_blogcreator"/>
+        <field name="implied_ids" eval="[(4, ref('group_blogcreator_reader'))]"/>
+    </record>
+
+    <!-- Nhóm quản lý -->
+    <record id="group_blogcreator_manager" model="res.groups">
+        <field name="name">Manager</field>
+        <field name="category_id" ref="module_category_blogcreator"/>
+        <field name="implied_ids" eval="[(4, ref('group_blogcreator_author'))]"/>
+        <field name="users" eval="[(4, ref('base.user_admin'))]"/>
+    </record>
+
+    <!-- Quy tắc bảo mật - người tạo chỉ có thể chỉnh sửa bài của họ -->
+    <record id="rule_blogcreator_author_own_posts" model="ir.rule">
+        <field name="name">Authors can only edit their own posts</field>
+        <field name="model_id" ref="model_blogcreator_note"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="groups" eval="[(4, ref('group_blogcreator_author'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+
+    <!-- Quy tắc bảo mật - manager có thể xem và chỉnh sửa tất cả -->
+    <record id="rule_blogcreator_manager_all_posts" model="ir.rule">
+        <field name="name">Managers have full access to all posts</field>
+        <field name="model_id" ref="model_blogcreator_note"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('group_blogcreator_manager'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record>
+</odoo>

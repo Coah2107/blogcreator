@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="cloudinary_config_settings" model="ir.ui.view">
+        <field name="name">blogcreator.cloudinary.settings.form</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('settings')]" position="inside">
+                <div class="app_settings_block" data-string="BlogCreator" string="BlogCreator" data-key="blogcreator">
+                    <h2>Cloudinary Configuration</h2>
+                    <div class="row mt16 o_settings_container">
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <span class="o_form_label">Cloudinary Credentials</span>
+                                <div class="text-muted">
+                                    Configure your Cloudinary account for image handling
+                                </div>
+                                <div class="mt16">
+                                    <label for="cloudinary_cloud_name" class="o_light_label">Cloud Name</label>
+                                    <field name="cloudinary_cloud_name"/>
+                                </div>
+                                <div>
+                                    <label for="cloudinary_api_key" class="o_light_label">API Key</label>
+                                    <field name="cloudinary_api_key" password="True"/>
+                                </div>
+                                <div>
+                                    <label for="cloudinary_api_secret" class="o_light_label">API Secret</label>
+                                    <field name="cloudinary_api_secret" password="True"/>
+                                </div>
+                                <div>
+                                    <label for="cloudinary_upload_folder" class="o_light_label">Upload Folder</label>
+                                    <field name="cloudinary_upload_folder" placeholder="e.g. blogcreator"/>
+                                </div>
+                                <div class="mt8">
+                                    <button name="test_cloudinary_connection" string="Test Connection" type="object" class="btn-primary"/>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

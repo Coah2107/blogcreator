@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+  <!-- Form View -->
+  <record id="view_blogpost_form" model="ir.ui.view">
+    <field name="name">blogcreator.note.form</field>
+    <field name="model">blogcreator.note</field>
+    <field name="arch" type="xml">
+      <form string="Blog Post">
+        <header>
+          <field name="state" widget="statusbar" statusbar_visible="draft,published,exported"/>
+          <button name="export_to_n8n" string="Export to n8n" type="object" class="oe_highlight" attrs="{'invisible': ['|', ('state', '=', 'exported'), ('is_published', '=', False)]}" help="Xuất dữ liệu sang n8n"/>
+          <button name="action_publish" string="Xuất bản" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+          <button name="action_unpublish" string="Hủy xuất bản" type="object" attrs="{'invisible': [('state', 'not in', ['published', 'exported'])]}"/>
+          <button name="action_reset_export" string="Reset xuất n8n" type="object" attrs="{'invisible': [('state', '!=', 'exported')]}"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <h1>
+              <field name="title" placeholder="Nhập tiêu đề..."/>
+            </h1>
+          </div>
+          <group>
+            <group>
+              <field name="note_type"/>
+              <field name="tags" placeholder="Ví dụ: odoo,n8n,blog"/>
+              <field name="user_id"/>
+            </group>
+            <group>
+              <field name="is_published"/>
+              <field name="exported_to_n8n"/>
+              <field name="export_date" attrs="{'invisible': [('exported_to_n8n', '=', False)]}"/>
+              <field name="state" invisible="1"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="Nội dung">
+              <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 500}"/>
+            </page>
+            <page string="Hình ảnh">
+              <field name="image_ids" mode="kanban">
+                <form string="Hình ảnh">
+                  <group>
+                    <field name="name"/>
+                    <field name="image" widget="image"/>
+                    <field name="description"/>
+                    <field name="sequence" widget="handle"/>
+                  </group>
+                </form>
+                <kanban>
+                  <field name="id"/>
+                  <field name="name"/>
+                  <templates>
+                    <t t-name="kanban-box">
+                      <div class="oe_kanban_global_click o_kanban_image">
+                        <div class="o_kanban_image">
+                          <img t-att-src="kanban_image('blogcreator.image', 'image', record.id.raw_value)" alt="Hình ảnh"/>
+                        </div>
+                        <div class="oe_kanban_details">
+                          <strong>
+                            <field name="name"/>
+                          </strong>
+                        </div>
+                      </div>
+                    </t>
+                  </templates>
+                </kanban>
+              </field>
+            </page>
+          </notebook>
+        </sheet>
+        <div class="oe_chatter">
+          <field name="message_follower_ids" widget="mail_followers"/>
+          <field name="activity_ids" widget="mail_activity"/>
+          <field name="message_ids" widget="mail_thread"/>
+        </div>
+      </form>
+    </field>
+  </record>
+
+  <!-- Tree View -->
+  <record id="view_blogpost_tree" model="ir.ui.view">
+    <field name="name">blogcreator.note.tree</field>
+    <field name="model">blogcreator.note</field>
+    <field name="arch" type="xml">
+      <tree string="Blog Posts" decoration-info="state=='draft'" decoration-success="state=='published'" decoration-muted="state=='exported'">
+        <field name="title"/>
+        <field name="note_type"/>
+        <field name="tags"/>
+        <field name="user_id"/>
+        <field name="state"/>
+        <field name="create_date"/>
+      </tree>
+    </field>
+  </record>
+
+  <!-- Search View -->
+  <record id="view_blogpost_search" model="ir.ui.view">
+    <field name="name">blogcreator.note.search</field>
+    <field name="model">blogcreator.note</field>
+    <field name="arch" type="xml">
+      <search>
+        <field name="title"/>
+        <field name="content"/>
+        <field name="tags"/>
+        <field name="user_id"/>
+        <filter string="Nháp" name="draft" domain="[('state', '=', 'draft')]"/>
+        <filter string="Đã xuất bản" name="published" domain="[('state', '=', 'published')]"/>
+        <filter string="Đã xuất sang n8n" name="exported" domain="[('state', '=', 'exported')]"/>
+        <filter string="Bài của tôi" name="my_posts" domain="[('user_id', '=', uid)]"/>
+        <group expand="0" string="Group By">
+          <filter string="Loại ghi chú" name="group_type" context="{'group_by': 'note_type'}"/>
+          <filter string="Trạng thái" name="group_state" context="{'group_by': 'state'}"/>
+          <filter string="Người tạo" name="group_user" context="{'group_by': 'user_id'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <!-- Action blog posts -->
+  <record id="action_blogpost" model="ir.actions.act_window">
+    <field name="name">Blog Posts</field>
+    <field name="res_model">blogcreator.note</field>
+    <field name="view_mode">tree,form</field>
+    <field name="target">current</field>
+    <field name="context">{'search_default_my_posts': 1}</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+                Tạo bài viết blog đầu tiên của bạn
+      </p>
+      <p>
+                Bạn có thể tạo các bài viết blog và xuất chúng sang n8n.
+      </p>
+    </field>
+  </record>
+
+  <!-- Action exported blog posts -->
+  <record id="exported_blogpost" model="ir.actions.act_window">
+    <field name="name">Exported Posts</field>
+    <field name="res_model">blogcreator.note</field>
+    <field name="view_mode">tree,form</field>
+    <field name="target">current</field>
+    <field name="domain">[('exported_to_n8n', '=', True)]</field>
+  </record>
+</odoo>
