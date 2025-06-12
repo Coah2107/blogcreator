@@ -144,8 +144,60 @@ class BlogNote(models.Model):
             _logger.info(f"Uploading image to Cloudinary in folder: {folder}")
             _logger.info(f"Image data type: {type(image_data)}")
 
-            # Xác định loại dữ liệu hình ảnh và tải lên
-            if isinstance(image_data, str):
+            if image_data is None:
+                raise ValueError("Image data is None")
+
+            # Xử lý trường hợp đặc biệt của Odoo
+            if (
+                hasattr(self, "_context")
+                and self._context.get("bin_size", False)
+                and hasattr(image_data, "name")
+            ):
+                # Trường hợp đặc biệt: Odoo cung cấp kích thước thay vì dữ liệu hình ảnh
+                # trong chế độ bin_size
+                _logger.warning("Detected bin_size mode, trying to get full image data")
+                # Tìm bản ghi liên quan đến hình ảnh
+                if hasattr(self, "image_ids") and self.image_ids:
+                    for img_record in self.image_ids:
+                        if hasattr(img_record, "image"):
+                            # Buộc Odoo lấy dữ liệu đầy đủ
+                            image_data = img_record.with_context(bin_size=False).image
+                            break
+
+            # Xử lý dựa trên loại dữ liệu
+            if isinstance(image_data, BytesIO):
+                _logger.info("Uploading BytesIO data to Cloudinary")
+                response = cloudinary.uploader.upload(image_data, **upload_options)
+            elif isinstance(image_data, bytes):
+                # Kiểm tra xem liệu bytes có phải là chuỗi UTF-8 không (có thể là base64 được lưu dưới dạng bytes)
+                try:
+                    decoded_str = image_data.decode("utf-8")
+                    # Nếu decode thành công, đây có thể là base64 string được lưu dưới dạng bytes
+                    _logger.info(
+                        "Bytes data appears to be a UTF-8 string, trying as base64"
+                    )
+                    # Kiểm tra xem có phải base64 không
+                    try:
+                        # Thử phân tích như base64
+                        base64.b64decode(decoded_str)
+                        _logger.info("Valid base64 string detected")
+                        # Sử dụng chuỗi base64 đã decode
+                        response = cloudinary.uploader.upload(
+                            BytesIO(base64.b64decode(decoded_str)), **upload_options
+                        )
+                    except Exception:
+                        # Không phải base64 hợp lệ, thử cách khác
+                        _logger.info("Not a valid base64 string, trying with data URL")
+                        response = cloudinary.uploader.upload(
+                            f"data:image/png;base64,{decoded_str}", **upload_options
+                        )
+                except UnicodeDecodeError:
+                    # Nếu không phải chuỗi UTF-8, giả định là dữ liệu hình ảnh nhị phân
+                    _logger.info("Bytes data not UTF-8, treating as binary image")
+                    response = cloudinary.uploader.upload(
+                        BytesIO(image_data), **upload_options
+                    )
+            elif isinstance(image_data, str):
                 if image_data.startswith("data:image"):
                     # Dữ liệu URL data
                     _logger.info("Uploading data URL to Cloudinary")
@@ -159,23 +211,54 @@ class BlogNote(models.Model):
                     _logger.info("Uploading base64 data to Cloudinary")
                     try:
                         # Thử giải mã base64 để xem nó có hợp lệ không
+                        _logger.info("Trying to decode as base64")
+                        padding_needed = len(image_data) % 4
+                        if padding_needed:
+                            image_data += "=" * (4 - padding_needed)
+
+                        # Xử lý base64 có thể có các ký tự không hợp lệ
+                        image_data = image_data.replace(" ", "+")
+
                         image_data_binary = base64.b64decode(image_data)
-                        _logger.info("Base64 data is valid")
                         response = cloudinary.uploader.upload(
                             BytesIO(image_data_binary), **upload_options
                         )
                     except Exception as e:
                         _logger.error(f"Invalid base64 data: {str(e)}")
-                        # Thử tải lên với định dạng data URL
-                        response = cloudinary.uploader.upload(
-                            f"data:image/png;base64,{image_data}", **upload_options
-                        )
+                        # Thử với cách khác - thêm header data:image
+                        try:
+                            # Thêm header thích hợp cho dữ liệu base64
+                            base64_with_header = f"data:image/png;base64,{image_data}"
+                            _logger.info("Trying with data:image header")
+                            response = cloudinary.uploader.upload(
+                                base64_with_header, **upload_options
+                            )
+                        except Exception as e:
+                            _logger.error(
+                                f"Still failed with data:image header: {str(e)}"
+                            )
+                            # Cuối cùng, thử xem liệu đây có phải là đường dẫn file không
+                            try:
+                                import os
+
+                                if os.path.exists(image_data):
+                                    _logger.info(
+                                        f"Trying to upload file from path: {image_data}"
+                                    )
+                                    response = cloudinary.uploader.upload(
+                                        image_data, **upload_options
+                                    )
+                                else:
+                                    raise ValueError(
+                                        f"Path doesn't exist: {image_data}"
+                                    )
+                            except Exception:
+                                _logger.error("All attempts failed")
+                                raise
             else:
-                # Dữ liệu nhị phân
-                _logger.info("Uploading binary data to Cloudinary")
-                response = cloudinary.uploader.upload(
-                    BytesIO(image_data), **upload_options
-                )
+                # Đối tượng file-like
+                _logger.info(f"Uploading object to Cloudinary: {type(image_data)}")
+                response = cloudinary.uploader.upload(image_data, **upload_options)
 
             _logger.info(
                 f"Image uploaded successfully to Cloudinary: {response.get('secure_url')}"
@@ -185,22 +268,74 @@ class BlogNote(models.Model):
         except Exception as e:
             _logger.error(f"Failed to upload image to Cloudinary: {str(e)}")
             _logger.exception("Exception details:")
+
+            # Thử một lần cuối với cách khác - lấy dữ liệu thô
+            try:
+                _logger.info("Last resort: trying to directly get raw data from Odoo")
+                if hasattr(self, "image_ids") and self.image_ids:
+                    for img in self.image_ids:
+                        if hasattr(img, "image") and img.image:
+                            # Thử tải lên một cách trực tiếp nhất
+                            model_name = img._name
+                            field_name = "image"
+                            record_id = img.id
+
+                            # Sử dụng API Odoo để lấy dữ liệu hình ảnh
+                            _logger.info(
+                                f"Trying to get image directly from {model_name}, record ID {record_id}"
+                            )
+                            attachment = self.env["ir.attachment"].search(
+                                [
+                                    ("res_model", "=", model_name),
+                                    ("res_id", "=", record_id),
+                                    ("res_field", "=", field_name),
+                                ],
+                                limit=1,
+                            )
+
+                            if attachment:
+                                # Lấy dữ liệu tệp tin từ attachment
+                                attachment_data = attachment.with_context(
+                                    bin_size=False
+                                ).datas
+                                if attachment_data:
+                                    _logger.info(
+                                        "Found attachment data, trying to upload"
+                                    )
+                                    binary_data = base64.b64decode(attachment_data)
+                                    result = cloudinary.uploader.upload(
+                                        BytesIO(binary_data), **upload_options
+                                    )
+                                    return result
+            except Exception as rescue_error:
+                _logger.error(f"Last resort attempt also failed: {str(rescue_error)}")
+
             raise UserError(_("Failed to upload image to Cloudinary: %s") % str(e))
 
-    @api.model
-    def write(self, vals):
-        """Ghi đè hàm write để cập nhật state khi thay đổi trạng thái xuất bản"""
-        res = super(BlogNote, self).write(vals)
-        # Cập nhật state dựa trên các trạng thái
-        if "is_published" in vals or "exported_to_n8n" in vals:
-            for record in self:
-                if record.exported_to_n8n:
-                    record.state = "exported"
-                elif record.is_published:
-                    record.state = "published"
-                else:
-                    record.state = "draft"
-        return res
+    @api.constrains('is_published', 'exported_to_n8n')
+    def _check_state_changes(self):
+        """Cập nhật state khi is_published hoặc exported_to_n8n thay đổi"""
+        for record in self:
+            if record.exported_to_n8n and record.state != 'exported':
+                record.state = 'exported'
+            elif record.is_published and not record.exported_to_n8n and record.state != 'published':
+                record.state = 'published'
+            elif not record.is_published and not record.exported_to_n8n and record.state != 'draft':
+                record.state = 'draft'
+
+    def update_state(self):
+        for record in self:
+            current_state = record.state
+            if record.exported_to_n8n:
+                new_state = "exported"
+            elif record.is_published:
+                new_state = "published"
+            else:
+                new_state = "draft"
+
+            if current_state != new_state:
+                record._write({"state": new_state})
+        return True
 
     def mark_as_exported(self):
         """Đánh dấu note đã được xuất sang n8n"""
@@ -209,10 +344,9 @@ class BlogNote(models.Model):
                 {
                     "exported_to_n8n": True,
                     "export_date": fields.Datetime.now(),
-                    "state": "exported",
                 }
             )
-            # Thêm tin nhắn vào chatter
+            record.update_state()
             record.message_post(body="Đã xuất thành công sang n8n")
         return True
 
@@ -444,18 +578,57 @@ class BlogNote(models.Model):
                             _logger.info(f"Image type: {type(img_record.image)}")
                             # Chuyển đổi dữ liệu hình ảnh sang định dạng phù hợp
                             image_data = img_record.image
-                            if not isinstance(image_data, str):
-                                # Nếu image_data là bytes, chuyển đổi sang base64 string
-                                image_data = (
-                                    base64.b64encode(image_data).decode("utf-8")
-                                    if isinstance(image_data, bytes)
-                                    else image_data
+                            if isinstance(image_data, bytes):
+                                _logger.info(
+                                    f"Gallery image bytes length: {len(image_data)}"
                                 )
+                                _logger.info(f"First 20 bytes: {image_data[:20]}")
 
+                                # Kiểm tra xem dữ liệu bytes có phải đã là base64 encoded hay chưa
+                                # Nếu nó bắt đầu bằng các bytes của file PNG, JPEG, GIF...
+                                is_raw_image = False
+                                common_image_headers = [
+                                    b"\x89PNG",  # PNG
+                                    b"\xff\xd8\xff",  # JPEG
+                                    b"GIF",  # GIF
+                                    b"BM",  # BMP
+                                ]
+
+                                for header in common_image_headers:
+                                    if image_data.startswith(header):
+                                        is_raw_image = True
+                                        _logger.info(
+                                            f"Detected raw image with header: {header}"
+                                        )
+                                        break
+
+                                if not is_raw_image:
+                                    # Nếu không phải raw image, giả định nó là base64 encoded string
+                                    # nhưng được lưu dưới dạng bytes, chuyển về string trước
+                                    try:
+                                        _logger.info(
+                                            "Converting bytes to base64 string"
+                                        )
+                                        image_data = image_data.decode("utf-8")
+                                        _logger.info(
+                                            f"Base64 string preview: {image_data[:50]}..."
+                                        )
+                                    except UnicodeDecodeError:
+                                        # Nếu decode utf-8 không thành công, đây có thể thực sự là bytes của hình ảnh
+                                        _logger.info(
+                                            "Bytes are not UTF-8, treating as raw image data"
+                                        )
                             # Tải lên Cloudinary
                             image_public_id = f"blog_{self.id}_gallery_image_{idx+1}"
+
+                            if isinstance(image_data, bytes):
+                                _logger.info("Using BytesIO for binary data upload")
+                                upload_data = BytesIO(image_data)
+                            else:
+                                upload_data = image_data
+
                             response = self.upload_to_cloudinary(
-                                image_data,
+                                upload_data,
                                 public_id=image_public_id,
                                 folder="blog_creator/gallery_images",
                             )
@@ -475,22 +648,64 @@ class BlogNote(models.Model):
                                 }
                             )
                             _logger.info(f"Gallery image {idx+1} uploaded successfully")
-                            
+
                         except Exception as e:
                             error_msg = str(e)
                             _logger.error(
                                 f"Error uploading gallery image {idx+1}: {error_msg}"
                             )
                             _logger.exception("Exception details:")
+
+                            # Thêm nhiều thông tin debug hơn
+                            if hasattr(img_record, "image") and img_record.image:
+                                # Thử kiểm tra xem liệu dữ liệu có phải là base64 hợp lệ không
+                                is_valid_base64 = False
+                                if isinstance(img_record.image, bytes):
+                                    try:
+                                        sample = img_record.image.decode("utf-8")
+                                        # Kiểm tra xem có phải chuỗi base64 hay không
+                                        import re
+
+                                        is_valid_base64 = bool(
+                                            re.match(r"^[A-Za-z0-9+/]+={0,2}$", sample)
+                                        )
+                                    except:
+                                        pass
+
                             debug_exceptions.append(
                                 {
                                     "location": f"gallery_image_{idx+1}",
                                     "error": error_msg,
                                     "traceback": traceback.format_exc(),
+                                    "image_info": {
+                                        "type": str(type(img_record.image)),
+                                        "is_string": isinstance(img_record.image, str),
+                                        "is_bytes": isinstance(img_record.image, bytes),
+                                        "length": (
+                                            len(img_record.image)
+                                            if img_record.image
+                                            else 0
+                                        ),
+                                        "is_valid_base64": is_valid_base64,
+                                        "first_bytes": (
+                                            str(img_record.image[:30])
+                                            if isinstance(img_record.image, bytes)
+                                            else None
+                                        ),
+                                    },
                                 }
                             )
             else:
                 _logger.info("No gallery images found")
+
+            content_images = []
+            for img in cloudinary_images:
+                content_images.append(
+                    {
+                        "url": img.get("url"),
+                        "alt": img.get("alt", ""),
+                    }
+                )
 
             # Chuẩn bị dữ liệu để xuất
             export_data = {
@@ -506,9 +721,19 @@ class BlogNote(models.Model):
                 "create_date": fields.Datetime.to_string(self.create_date),
                 "user": self.env.user.name,
                 "main_image": main_cloudinary_image,
-                "content_images": cloudinary_images,
-                # Thêm debug info
-                "debug_info": {
+                "content_images": content_images,
+            }
+
+            include_debug = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_param("blogcreator.include_debug_info", "False")
+                .lower()
+                == "true"
+            )
+
+            if include_debug:
+                export_data["debug_info"] = {
                     "has_main_image": bool(self.image),
                     "main_image_type": str(type(self.image)) if self.image else None,
                     "has_img_tags": (
@@ -539,8 +764,7 @@ class BlogNote(models.Model):
                     },
                     "exceptions": debug_exceptions,
                     "image_ids_details": image_ids_details,
-                },
-            }
+                }
 
             _logger.info(f"Sending data to n8n webhook: {webhook_url}")
             _logger.info(f"Number of Cloudinary images: {len(cloudinary_images)}")
@@ -597,13 +821,15 @@ class BlogNote(models.Model):
     def action_publish(self):
         """Đánh dấu bài viết là đã xuất bản"""
         for record in self:
-            record.write({"is_published": True, "state": "published"})
+            record.write({"is_published": True})
+            record.update_state()
         return True
 
     def action_unpublish(self):
         """Hủy xuất bản bài viết"""
         for record in self:
-            record.write({"is_published": False, "state": "draft"})
+            record.write({"is_published": False})
+            record.update_state()
         return True
 
     def action_reset_export(self):
@@ -613,8 +839,8 @@ class BlogNote(models.Model):
                 {
                     "exported_to_n8n": False,
                     "export_date": False,
-                    "state": "published" if record.is_published else "draft",
                 }
             )
+            record.update_state()
             record.message_post(body="Đã reset trạng thái xuất sang n8n")
         return True

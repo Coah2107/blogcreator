@@ -27,6 +27,19 @@ class ResConfigSettings(models.TransientModel):
         default="blogcreator",
     )
 
+    include_debug_info = fields.Boolean(
+        string="Include Debug Info in Webhook",
+        config_parameter="blogcreator.include_debug_info",
+        default=False,
+    )
+
+    export_fields = fields.Char(
+        string="Fields to Export",
+        config_parameter="blogcreator.export_fields",
+        default="id,title,content,cloudinary_content,note_type,tags,is_published,create_date,user,main_image,content_images",
+        help="Comma-separated list of fields to include in the webhook payload",
+    )
+
     def test_cloudinary_connection(self):
         """Test the Cloudinary connection"""
         try:
