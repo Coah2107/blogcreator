@@ -22,6 +22,8 @@
         "views/templates.xml",
         "views/menu.xml",
         "views/res_config_settings_views.xml",
+        "views/n8n_response_views.xml",
+        "data/n8n_sequence.xml",
     ],
     "demo": [
         "demo/demo.xml",

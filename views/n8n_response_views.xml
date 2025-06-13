@@ -1,0 +1,136 @@
+<!-- views/n8n_response_views.xml -->
+<odoo>
+    <!-- Form View -->
+    <record id="view_n8n_response_form" model="ir.ui.view">
+        <field name="name">blogcreator.n8n.response.form</field>
+        <field name="model">blogcreator.n8n.response</field>
+        <field name="arch" type="xml">
+            <form string="Phản hồi từ N8n">
+                <header>
+                    <button name="retry_export" string="Thử gửi lại" type="object" class="btn-warning" attrs="{'invisible': [('success', '=', True)]}"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="response_id" string="Mã phản hồi"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="note_id" string="Bài viết"/>
+                            <field name="response_time" string="Thời gian nhận phản hồi"/>
+                        </group>
+                        <group>
+                            <!-- <field name="status_code" string="Mã trạng thái"/> -->
+                            <field name="status_description" string="Trạng thái"/>
+                            <field name="success" string="Thành công" widget="boolean_toggle" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Chi tiết phản hồi">
+                            <group string="Thông tin phản hồi">
+                                <field name="formatted_response" string="Nội dung phản hồi" widget="html" attrs="{'invisible': [('formatted_response', '=', False)]}"/>
+                            </group>
+                            <div attrs="{'invisible': [('formatted_response', '!=', False)]}">
+                                <p>Không nhận được nội dung phản hồi.</p>
+                            </div>
+                        </page>
+                        <page string="Hướng dẫn xử lý" attrs="{'invisible': [('success', '=', True)]}">
+                            <div class="alert alert-warning" role="alert">
+                                <h4>Khi gặp lỗi, bạn có thể thử các cách sau:</h4>
+                                <ul>
+                                    <li>Kiểm tra lại nội dung bài viết xem có đầy đủ thông tin chưa</li>
+                                    <li>Thử xuất lại bằng cách nhấn nút "Thử gửi lại"</li>
+                                    <li>Liên hệ quản trị hệ thống nếu vấn đề tiếp tục xảy ra</li>
+                                </ul>
+                            </div>
+                            <group string="Các bước xử lý lỗi">
+                                <p>1. Kiểm tra bài viết có đầy đủ thông tin cần thiết</p>
+                                <p>2. Kiểm tra kết nối mạng và máy chủ</p>
+                                <p>3. Liên hệ quản trị viên nếu vấn đề vẫn tiếp diễn</p>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <!-- Tree View -->
+    <record id="view_n8n_response_tree" model="ir.ui.view">
+        <field name="name">blogcreator.n8n.response.tree</field>
+        <field name="model">blogcreator.n8n.response</field>
+        <field name="arch" type="xml">
+            <tree string="Lịch sử gửi bài" decoration-success="success" decoration-danger="not success">
+                <field name="response_time" string="Thời gian gửi"/>
+                <field name="note_id" string="Bài viết"/>
+                <field name="status_description" string="Trạng thái"/>
+                <field name="success" string="Kết quả"/>
+                <button name="retry_export" string="Gửi lại" type="object" icon="fa-refresh" attrs="{'invisible': [('success', '=', True)]}"/>
+            </tree>
+        </field>
+    </record>
+
+    <!-- Search View -->
+    <record id="view_n8n_response_search" model="ir.ui.view">
+        <field name="name">blogcreator.n8n.response.search</field>
+        <field name="model">blogcreator.n8n.response</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="note_id" string="Bài viết"/>
+                <field name="status_description" string="Trạng thái"/>
+                <filter string="Thành công" name="successful" domain="[('success', '=', True)]"/>
+                <filter string="Thất bại" name="failed" domain="[('success', '=', False)]"/>
+                <group expand="0" string="Nhóm theo">
+                    <filter string="Bài viết" name="group_by_note" context="{'group_by': 'note_id'}"/>
+                    <filter string="Ngày" name="group_by_date" context="{'group_by': 'response_time:day'}"/>
+                    <filter string="Kết quả" name="group_by_success" context="{'group_by': 'success'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <!-- Action -->
+    <record id="action_n8n_response" model="ir.actions.act_window">
+        <field name="name">Lịch sử gửi bài</field>
+        <field name="res_model">blogcreator.n8n.response</field>
+        <field name="view_mode">tree,form</field>
+        <field name="context"></field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+            Chưa có lịch sử gửi bài nào
+            </p>
+            <p>
+            Màn hình này hiển thị lịch sử các lần gửi bài viết của bạn.
+            </p>
+        </field>
+    </record>
+
+    <!-- Graph View -->
+    <record id="view_n8n_response_graph" model="ir.ui.view">
+        <field name="name">blogcreator.n8n.response.graph</field>
+        <field name="model">blogcreator.n8n.response</field>
+        <field name="arch" type="xml">
+            <graph string="N8n Response Statistics" type="bar">
+                <field name="status_code" type="row"/>
+                <field name="response_time" type="col" interval="day"/>
+                <field name="note_id" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+
+    <record id="view_n8n_response_pivot" model="ir.ui.view">
+        <field name="name">blogcreator.n8n.response.pivot</field>
+        <field name="model">blogcreator.n8n.response</field>
+        <field name="arch" type="xml">
+            <pivot string="N8n Response Analysis">
+                <field name="status_code" type="row"/>
+                <field name="response_time" type="col" interval="day"/>
+                <field name="note_id" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <!-- Menu Item -->
+</odoo> 

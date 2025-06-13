@@ -37,7 +37,7 @@ class BlogNote(models.Model):
             ("entertainment", "Giải trí"),
             ("other", "Khác"),
         ],
-        string="Loại ghi chú",
+        string="Thể Loại",
         default="general",
         required=True,
         tracking=True,
@@ -45,14 +45,14 @@ class BlogNote(models.Model):
     state = fields.Selection(
         [
             ("draft", "Nháp"),
-            ("published", "Đã xuất bản"),
             ("exported", "Đã xuất sang n8n"),
+            ("approved", "Đã duyệt"),
         ],
         string="Trạng thái",
         default="draft",
         tracking=True,
     )
-    is_published = fields.Boolean(string="Đã xuất bản", default=False, tracking=True)
+    is_published = fields.Boolean(string="Đã duyệt", default=False, tracking=True)
     exported_to_n8n = fields.Boolean(
         string="Đã xuất sang n8n", default=False, tracking=True
     )
@@ -76,6 +76,32 @@ class BlogNote(models.Model):
     image_name = fields.Char(string="Tên file hình ảnh")
     # Thêm trường cho nhiều hình ảnh (sử dụng Many2many)
     image_ids = fields.One2many("blogcreator.image", "note_id", string="Hình ảnh")
+
+    thumbnail = fields.Binary(
+        string="Hình thu nhỏ (Thumbnail)",
+        attachment=True,
+        help="Hình thu nhỏ sẽ được hiển thị khi xem danh sách các bài viết",
+    )
+    thumbnail_name = fields.Char(string="Tên file thumbnail")
+    use_main_as_thumbnail = fields.Boolean(
+        string="Sử dụng hình ảnh chính làm thumbnail",
+        default=True,
+        help="Nếu được chọn, hình ảnh chính sẽ được sử dụng làm thumbnail",
+    )
+
+    
+    n8n_response_ids = fields.One2many('blogcreator.n8n.response', 'note_id', string="N8n Responses")
+
+    last_n8n_response_id = fields.Many2one('blogcreator.n8n.response', string="Latest Response",
+                                         compute="_compute_last_response", store=False)
+    last_n8n_status = fields.Integer(related="last_n8n_response_id.status_code", string="Latest Status", store=False)
+    last_n8n_success = fields.Boolean(related="last_n8n_response_id.success", string="Latest Success", store=False)
+
+    @api.depends('n8n_response_ids')
+    def _compute_last_response(self):
+        for record in self:
+            record.last_n8n_response_id = self.env['blogcreator.n8n.response'].search(
+                [('note_id', '=', record.id)], order='response_time desc', limit=1)
 
     def _initialize_cloudinary(self):
         """Khởi tạo cấu hình Cloudinary từ System Parameters"""
@@ -116,9 +142,10 @@ class BlogNote(models.Model):
         cloudinary.config(cloud_name=cloud_name, api_key=api_key, api_secret=api_secret)
         return True
 
-    def upload_to_cloudinary(self, image_data, public_id=None, folder=None):
+    def upload_to_cloudinary(
+        self, image_data, public_id=None, folder=None, is_thumbnail=False
+    ):
         """Tải hình ảnh lên Cloudinary
-
         :param image_data: Dữ liệu hình ảnh (base64 string hoặc URL)
         :param public_id: ID công khai cho tài nguyên (tùy chọn)
         :param folder: Thư mục trên Cloudinary (tùy chọn)
@@ -140,6 +167,21 @@ class BlogNote(models.Model):
 
             if public_id:
                 upload_options["public_id"] = public_id
+
+            if is_thumbnail:
+                upload_options.update(
+                    {
+                        "transformation": [
+                            {
+                                "width": 400,
+                                "height": 300,
+                                "crop": "fill",
+                                "gravity": "auto",
+                            },
+                            {"quality": "auto:good"},
+                        ]
+                    }
+                )
 
             _logger.info(f"Uploading image to Cloudinary in folder: {folder}")
             _logger.info(f"Image data type: {type(image_data)}")
@@ -312,16 +354,24 @@ class BlogNote(models.Model):
 
             raise UserError(_("Failed to upload image to Cloudinary: %s") % str(e))
 
-    @api.constrains('is_published', 'exported_to_n8n')
+    @api.constrains("is_published", "exported_to_n8n")
     def _check_state_changes(self):
         """Cập nhật state khi is_published hoặc exported_to_n8n thay đổi"""
         for record in self:
-            if record.exported_to_n8n and record.state != 'exported':
-                record.state = 'exported'
-            elif record.is_published and not record.exported_to_n8n and record.state != 'published':
-                record.state = 'published'
-            elif not record.is_published and not record.exported_to_n8n and record.state != 'draft':
-                record.state = 'draft'
+            if record.exported_to_n8n and record.state != "exported":
+                record.state = "exported"
+            elif (
+                record.is_published
+                and not record.exported_to_n8n
+                and record.state != "approved"
+            ):
+                record.state = "approved"
+            elif (
+                not record.is_published
+                and not record.exported_to_n8n
+                and record.state != "draft"
+            ):
+                record.state = "draft"
 
     def update_state(self):
         for record in self:
@@ -329,7 +379,7 @@ class BlogNote(models.Model):
             if record.exported_to_n8n:
                 new_state = "exported"
             elif record.is_published:
-                new_state = "published"
+                new_state = "approved"
             else:
                 new_state = "draft"
 
@@ -354,6 +404,8 @@ class BlogNote(models.Model):
         """Hàm chuẩn bị và xuất dữ liệu sang n8n"""
         self.ensure_one()
         try:
+            import re as regex
+
             # Khởi tạo biến debug_exceptions
             debug_exceptions = []
 
@@ -379,6 +431,56 @@ class BlogNote(models.Model):
             # Khởi tạo danh sách để lưu các URL hình ảnh từ Cloudinary
             cloudinary_images = []
             main_cloudinary_image = None
+            thumbnail_cloudinary_url = None
+
+            if not self.use_main_as_thumbnail and self.thumbnail:
+                try:
+                    # Upload thumbnail lên Cloudinary
+                    _logger.info("Uploading custom thumbnail to Cloudinary")
+
+                    # Chuyển đổi dữ liệu hình ảnh sang định dạng phù hợp
+                    thumbnail_data = self.thumbnail
+                    if not isinstance(thumbnail_data, str):
+                        # Nếu thumbnail_data là bytes, chuyển đổi sang base64 string
+                        _logger.info("Converting binary thumbnail data to base64")
+                        thumbnail_data = (
+                            base64.b64encode(thumbnail_data).decode("utf-8")
+                            if isinstance(thumbnail_data, bytes)
+                            else thumbnail_data
+                        )
+
+                    # Chuẩn bị tên public_id từ tiêu đề bài viết
+                    blog_title_slug = regex.sub(
+                        r"[^a-zA-Z0-9_]", "_", self.title.lower()
+                    )
+                    public_id = f"blog_{self.id}_{blog_title_slug}_thumbnail"
+
+                    # Upload lên Cloudinary
+                    response = self.upload_to_cloudinary(
+                        thumbnail_data,
+                        public_id=public_id,
+                        folder="blog_creator/thumbnails",
+                        is_thumbnail=True,
+                    )
+
+                    if response and response.get("secure_url"):
+                        thumbnail_cloudinary_url = response["secure_url"]
+                        _logger.info(
+                            f"Thumbnail uploaded to Cloudinary: {thumbnail_cloudinary_url}"
+                        )
+                except Exception as e:
+                    error_msg = str(e)
+                    _logger.error(
+                        f"Error uploading thumbnail to Cloudinary: {error_msg}"
+                    )
+                    _logger.exception("Exception details:")
+                    debug_exceptions.append(
+                        {
+                            "location": "thumbnail",
+                            "error": error_msg,
+                            "traceback": traceback.format_exc(),
+                        }
+                    )
 
             # Xử lý hình ảnh chính (nếu có)
             if self.image:
@@ -399,7 +501,9 @@ class BlogNote(models.Model):
                         )
 
                     # Chuẩn bị tên public_id từ tiêu đề bài viết
-                    blog_title_slug = re.sub(r"[^a-zA-Z0-9_]", "_", self.title.lower())
+                    blog_title_slug = regex.sub(
+                        r"[^a-zA-Z0-9_]", "_", self.title.lower()
+                    )
                     public_id = f"blog_{self.id}_{blog_title_slug}_main"
 
                     # Upload lên Cloudinary
@@ -425,6 +529,11 @@ class BlogNote(models.Model):
                                 "is_main": True,
                             }
                         )
+
+                        if self.use_main_as_thumbnail and not thumbnail_cloudinary_url:
+                            thumbnail_cloudinary_url = main_cloudinary_image
+                            _logger.info("Using main image as thumbnail")
+
                 except Exception as e:
                     error_msg = str(e)
                     _logger.error(
@@ -441,13 +550,36 @@ class BlogNote(models.Model):
 
             # Xử lý hình ảnh trong HTML content
             html_content = self.content or ""
+
             _logger.info(f"Content field has value: {bool(html_content)}")
             if html_content:
                 _logger.info(f"Content length: {len(html_content)}")
                 _logger.info(f"Content preview: {html_content[:100]}...")
 
+                plain_text_content = ""
+
                 try:
                     soup = BeautifulSoup(html_content, "html.parser")
+
+                    paragraphs = soup.find_all(
+                        ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]
+                    )
+                    plain_text_parts = []
+
+                    for p in paragraphs:
+                        text = p.get_text(strip=True)
+                        if text:
+                            plain_text_parts.append(text)
+
+                    plain_text_content = "\n\n".join(plain_text_parts)
+
+                    if not plain_text_content:
+                        plain_text_content = soup.get_text(separator="\n\n", strip=True)
+
+                    _logger.info(
+                        f"Plain text content extracted: {plain_text_content[:100]}..."
+                    )
+
                     img_tags = soup.find_all("img")
                     _logger.info(f"Found {len(img_tags)} img tags in HTML content")
 
@@ -531,7 +663,6 @@ class BlogNote(models.Model):
                             )
 
                     # Cập nhật nội dung HTML với các URL Cloudinary mới
-                    updated_html = str(new_soup)
                     _logger.info("HTML content updated with Cloudinary URLs")
                 except Exception as e:
                     error_msg = str(e)
@@ -544,10 +675,9 @@ class BlogNote(models.Model):
                             "traceback": traceback.format_exc(),
                         }
                     )
-                    updated_html = html_content
             else:
-                updated_html = html_content
                 _logger.info("No HTML content to process")
+                plain_text_content = ""
 
             # Xử lý hình ảnh từ image_ids nếu có
             image_ids_details = []
@@ -711,8 +841,7 @@ class BlogNote(models.Model):
             export_data = {
                 "id": self.id,
                 "title": self.title,
-                "content": self.content,
-                "cloudinary_content": updated_html,
+                "content": plain_text_content,
                 "note_type": dict(self._fields["note_type"].selection).get(
                     self.note_type
                 ),
@@ -720,14 +849,14 @@ class BlogNote(models.Model):
                 "is_published": self.is_published,
                 "create_date": fields.Datetime.to_string(self.create_date),
                 "user": self.env.user.name,
-                "main_image": main_cloudinary_image,
+                "thumbnail": thumbnail_cloudinary_url,
                 "content_images": content_images,
             }
 
             include_debug = (
                 self.env["ir.config_parameter"]
                 .sudo()
-                .get_param("blogcreator.include_debug_info", "False")
+                .get_param("blogcreator.include_debug_info", "True")
                 .lower()
                 == "true"
             )
@@ -774,8 +903,15 @@ class BlogNote(models.Model):
                 webhook_url,
                 json=export_data,
                 headers={"Content-Type": "application/json"},
-                timeout=30,  # Tăng timeout vì có xử lý nhiều hình ảnh
+                timeout=30,
             )
+
+            self.env['blogcreator.n8n.response'].create({
+                'note_id': self.id,
+                'response_time': fields.Datetime.now(),
+                'status_code': response.status_code,
+                'response_content': response.text,
+            })
 
             # Kiểm tra phản hồi
             if response.status_code in (200, 201):
@@ -818,14 +954,25 @@ class BlogNote(models.Model):
             },
         }
 
-    def action_publish(self):
-        """Đánh dấu bài viết là đã xuất bản"""
+    def retry_export_to_n8n(self):
+        """Thử lại việc xuất sang n8n"""
+        self.ensure_one()
+        self.write({
+            'exported_to_n8n': False,
+            'export_date': False,
+        })
+        self.update_state()
+        self.message_post(body="Đã reset trạng thái xuất sang n8n để thử lại")
+        return self.export_to_n8n()
+
+    def action_approve(self):
+        """Đánh dấu bài viết là đã duyệt"""
         for record in self:
             record.write({"is_published": True})
             record.update_state()
         return True
 
-    def action_unpublish(self):
+    def action_unapprove(self):
         """Hủy xuất bản bài viết"""
         for record in self:
             record.write({"is_published": False})

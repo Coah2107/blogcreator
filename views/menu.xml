@@ -5,5 +5,6 @@
 
     <!-- Menu con - Blog Posts -->
     <menuitem id="menu_blogcreator_posts" name="Blog Posts" parent="menu_blogcreator_root" action="action_blogpost" sequence="10"/>
-    <menuitem id="menu_blogcreator_exported_posts" name="Exported Posts" parent="menu_blogcreator_root" action="exported_blogpost" sequence="10"/>
+    <menuitem id="menu_blogcreator_exported_posts" name="Bài đã được duyệt" parent="menu_blogcreator_root" action="exported_blogpost" sequence="30"/>
+    <menuitem id="menu_n8n_response" name="Lịch sử gửi bài" parent="menu_blogcreator_root" action="action_n8n_response" sequence="20"/>
 </odoo>

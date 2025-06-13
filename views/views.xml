@@ -7,10 +7,10 @@
     <field name="arch" type="xml">
       <form string="Blog Post">
         <header>
-          <field name="state" widget="statusbar" statusbar_visible="draft,published,exported"/>
-          <button name="export_to_n8n" string="Export to n8n" type="object" class="oe_highlight" attrs="{'invisible': ['|', ('state', '=', 'exported'), ('is_published', '=', False)]}" help="Xuất dữ liệu sang n8n"/>
-          <button name="action_publish" string="Xuất bản" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
-          <button name="action_unpublish" string="Hủy xuất bản" type="object" attrs="{'invisible': [('state', 'not in', ['published', 'exported'])]}"/>
+          <field name="state" widget="statusbar" statusbar_visible="draft,exported,approved"/>
+          <button name="export_to_n8n" string="Tạo bài viết" type="object" class="oe_highlight" attrs="{'invisible': ['|', ('state', '=', 'exported'), ('is_published', '=', False)]}" help="Xuất dữ liệu sang n8n"/>
+          <button name="action_approve" string="Xuất bản" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
+          <button name="action_unapprove" string="Hủy xuất bản" type="object" attrs="{'invisible': [('state', 'not in', ['approved', 'exported'])]}"/>
           <button name="action_reset_export" string="Reset xuất n8n" type="object" attrs="{'invisible': [('state', '!=', 'exported')]}"/>
         </header>
         <sheet>
@@ -34,7 +34,7 @@
           </group>
           <notebook>
             <page string="Nội dung">
-              <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 500}"/>
+              <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 400}"/>
             </page>
             <page string="Hình ảnh">
               <field name="image_ids" mode="kanban">
@@ -66,6 +66,44 @@
                 </kanban>
               </field>
             </page>
+            <page string="Thumbnail">
+              <group>
+                <field name="use_main_as_thumbnail"/>
+                <field name="thumbnail" widget="image" attrs="{'invisible': [('use_main_as_thumbnail', '=', True)]}"/>
+                <field name="thumbnail_name" attrs="{'invisible': [('use_main_as_thumbnail', '=', True)]}"/>
+                <!-- <div class="alert alert-info" role="alert" attrs="{'invisible': [('use_main_as_thumbnail', '=', False)]}">
+                  <p>Đang sử dụng hình ảnh chính làm thumbnail. Để tải lên thumbnail riêng, hãy bỏ chọn tùy chọn bên trên.</p>
+                </div> -->
+              </group>
+            </page>
+            <page string="N8n Responses" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
+              <field name="last_n8n_response_id" invisible="1"/>
+              <field name="last_n8n_status" invisible="1"/>
+              <field name="last_n8n_success" invisible="1"/>
+
+              <div class="oe_button_box" name="button_box">
+                <button name="retry_export_to_n8n" type="object" string="Thử lại xuất n8n" class="btn btn-warning" attrs="{'invisible': [('last_n8n_success', '=', True)]}"/>
+              </div>
+
+              <div class="alert alert-success" role="alert" attrs="{'invisible': [('last_n8n_success', '=', False)]}">
+                <p>Response gần nhất thành công với mã <field name="last_n8n_status" readonly="1" class="oe_inline"/>
+                </p>
+              </div>
+              <div class="alert alert-danger" role="alert" attrs="{'invisible': [('last_n8n_success', '=', True)]}">
+                <p>Response gần nhất thất bại với mã <field name="last_n8n_status" readonly="1" class="oe_inline"/>
+                </p>
+              </div>
+
+              <field name="n8n_response_ids" readonly="1">
+                <tree decoration-success="success" decoration-danger="not success">
+                  <field name="response_id"/>
+                  <!-- <field name="status_code"/> -->
+                  <field name="success"/>
+                  <field name="response_time"/>
+                  <button name="retry_export" string="Thử lại" type="object" attrs="{'invisible': [('success', '=', True)]}" icon="fa-refresh"/>
+                </tree>
+              </field>
+            </page>
           </notebook>
         </sheet>
         <div class="oe_chatter">
@@ -82,7 +120,7 @@
     <field name="name">blogcreator.note.tree</field>
     <field name="model">blogcreator.note</field>
     <field name="arch" type="xml">
-      <tree string="Blog Posts" decoration-info="state=='draft'" decoration-success="state=='published'" decoration-muted="state=='exported'">
+      <tree string="Blog Posts" decoration-info="state=='draft'" decoration-success="state=='approved'" decoration-muted="state=='exported'">
         <field name="title"/>
         <field name="note_type"/>
         <field name="tags"/>
@@ -104,7 +142,7 @@
         <field name="tags"/>
         <field name="user_id"/>
         <filter string="Nháp" name="draft" domain="[('state', '=', 'draft')]"/>
-        <filter string="Đã xuất bản" name="published" domain="[('state', '=', 'published')]"/>
+        <filter string="Đã xuất bản" name="approved" domain="[('state', '=', 'approved')]"/>
         <filter string="Đã xuất sang n8n" name="exported" domain="[('state', '=', 'exported')]"/>
         <filter string="Bài của tôi" name="my_posts" domain="[('user_id', '=', uid)]"/>
         <group expand="0" string="Group By">
@@ -135,7 +173,7 @@
 
   <!-- Action exported blog posts -->
   <record id="exported_blogpost" model="ir.actions.act_window">
-    <field name="name">Exported Posts</field>
+    <field name="name">Bài đã được duyệt</field>
     <field name="res_model">blogcreator.note</field>
     <field name="view_mode">tree,form</field>
     <field name="target">current</field>
