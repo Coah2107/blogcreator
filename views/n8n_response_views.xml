@@ -65,7 +65,7 @@
                 <field name="response_time" string="Thời gian gửi"/>
                 <field name="note_id" string="Bài viết"/>
                 <field name="status_description" string="Trạng thái"/>
-                <field name="success" string="Kết quả"/>
+                <field name="success" string="Kết quả" invisible="1"/>
                 <button name="retry_export" string="Gửi lại" type="object" icon="fa-refresh" attrs="{'invisible': [('success', '=', True)]}"/>
             </tree>
         </field>

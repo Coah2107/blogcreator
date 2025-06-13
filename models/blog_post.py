@@ -772,6 +772,11 @@ class BlogNote(models.Model):
                                         if hasattr(img_record, "name")
                                         else f"Gallery image {idx+1}"
                                     ),
+                                    "description": (
+                                        img_record.description
+                                        if hasattr(img_record, "description") and img_record.description
+                                        else ""
+                                    ),
                                     "width": response.get("width"),
                                     "height": response.get("height"),
                                     "is_gallery": True,
@@ -834,6 +839,7 @@ class BlogNote(models.Model):
                     {
                         "url": img.get("url"),
                         "alt": img.get("alt", ""),
+                        "description": img.get("description", ""),
                     }
                 )
 
@@ -922,7 +928,7 @@ class BlogNote(models.Model):
                     "tag": "display_notification",
                     "params": {
                         "title": "Thành công",
-                        "message": f'Đã xuất "{self.title}" sang n8n thành công với {len(cloudinary_images)} hình ảnh',
+                        "message": f'Đã xuất bài viết "{self.title}" sang n8n thành công',
                         "type": "success",
                         "sticky": False,
                     },
