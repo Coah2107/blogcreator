@@ -1,5 +1,8 @@
 # models/n8n_response.py
 from odoo import models, fields, api
+import logging
+
+_logger = logging.getLogger(__name__)
 
 
 class N8nResponse(models.Model):
@@ -74,21 +77,38 @@ class N8nResponse(models.Model):
             try:
                 # Thử chuyển đổi JSON thành định dạng dễ đọc
                 import json
+                import markdown  # Thư viện để chuyển đổi Markdown sang HTML
 
                 data = json.loads(record.response_content)
 
-                # Tạo HTML hiển thị dễ đọc
-                html = "<dl class='row'>"
-                for key, value in data.items():
-                    html += f"<dt class='col-sm-3'>{key}</dt>"
-                    if isinstance(value, (dict, list)):
-                        value_str = json.dumps(value, indent=2, ensure_ascii=False)
-                        html += f"<dd class='col-sm-9'><pre>{value_str}</pre></dd>"
-                    else:
-                        html += f"<dd class='col-sm-9'>{value}</dd>"
-                html += "</dl>"
-                record.formatted_response = html
-            except:
+                # Kiểm tra xem 'final_content' có tồn tại trong response_content
+                if "final_content" in data:
+                    final_content = data["final_content"]
+
+                    # Loại bỏ dòng '```markdown' và '```' khỏi nội dung
+                    lines = final_content.splitlines()
+                    filtered_lines = [line for line in lines if not line.strip().startswith("```")]
+                    cleaned_content = "\n".join(filtered_lines)
+
+                    # Chuyển đổi Markdown đã làm sạch sang HTML
+                    html_content = markdown.markdown(cleaned_content)
+
+                    # Gán HTML đã chuyển đổi vào formatted_response
+                    record.formatted_response = html_content
+                    _logger.info(f"Image data type: {html_content}")
+                else:
+                    # Nếu không có 'final_content', hiển thị toàn bộ JSON như trước
+                    html = "<dl class='row'>"
+                    for key, value in data.items():
+                        html += f"<dt class='col-sm-3'>{key}</dt>"
+                        if isinstance(value, (dict, list)):
+                            value_str = json.dumps(value, indent=2, ensure_ascii=False)
+                            html += f"<dd class='col-sm-9'><pre>{value_str}</pre></dd>"
+                        else:
+                            html += f"<dd class='col-sm-9'>{value}</dd>"
+                    html += "</dl>"
+                    record.formatted_response = html
+            except Exception as e:
                 # Nếu không phải JSON hoặc có lỗi xử lý
                 record.formatted_response = f"<pre>{record.response_content}</pre>"
 

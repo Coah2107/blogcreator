@@ -37,28 +37,30 @@
               <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 400}"/>
             </page>
             <page string="Hình ảnh">
-              <field name="image_ids" mode="kanban">
-                <form string="Hình ảnh">
-                  <group>
-                    <field name="name"/>
-                    <field name="image" widget="image"/>
-                    <field name="description"/>
-                    <field name="sequence" widget="handle"/>
-                  </group>
-                </form>
+              <field name="image_ids" mode="kanban" options="{'title': 'Thêm ảnh mới'}">
                 <kanban>
                   <field name="id"/>
+                  <field name="image"/>
                   <field name="name"/>
+                  <field name="description"/>
+                  <field name="is_thumbnail"/>
                   <templates>
                     <t t-name="kanban-box">
-                      <div class="oe_kanban_global_click o_kanban_image">
-                        <div class="o_kanban_image">
-                          <img t-att-src="kanban_image('blogcreator.image', 'image', record.id.raw_value)" alt="Hình ảnh"/>
+                      <div class="bc_kanban_card">
+                        <img t-att-src="kanban_image('blogcreator.image', 'image', record.id.raw_value)" class="bc_kanban_img"/>
+                        <div class="bc_kanban_title">
+                          <t t-esc="record.name.value"/>
                         </div>
-                        <div class="oe_kanban_details">
-                          <strong>
-                            <field name="name"/>
-                          </strong>
+                        <div class="bc_kanban_desc">
+                          <t t-esc="record.description.value"/>
+                        </div>
+                        <div class="bc_kanban_actions">
+                          <a type="edit" class="btn btn-sm btn-primary" title="Sửa">
+                            <i class="fa fa-pencil"/>
+                          </a>
+                          <a type="delete" class="btn btn-sm btn-danger" title="Xóa">
+                            <i class="fa fa-trash"/>
+                          </a>
                         </div>
                       </div>
                     </t>
@@ -66,13 +68,7 @@
                 </kanban>
               </field>
             </page>
-            <page string="Thumbnail">
-              <group>
-                <field name="use_main_as_thumbnail"/>
-                <field name="thumbnail" widget="image" attrs="{'invisible': [('use_main_as_thumbnail', '=', True)]}"/>
-                <field name="thumbnail_name" attrs="{'invisible': [('use_main_as_thumbnail', '=', True)]}"/>
-              </group>
-            </page>
+            <!--  -->
             <page string="N8n Responses" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
               <field name="last_n8n_response_id" invisible="1"/>
               <field name="last_n8n_status" invisible="1"/>
@@ -125,6 +121,26 @@
         <field name="state"/>
         <field name="create_date" string="Ngày được tạo"/>
       </tree>
+    </field>
+  </record>
+
+  <record id="view_blogimage_form" model="ir.ui.view">
+    <field name="name">blogcreator.image.form</field>
+    <field name="model">blogcreator.image</field>
+    <field name="arch" type="xml">
+      <form string="Blog Image">
+        <sheet>
+          <group>
+            <field name="name"/>
+            <field name="sequence"/>
+            <field name="is_thumbnail"/>
+            <field name="note_id" invisible="1"/>
+            <field name="image" widget="image"/>
+            <field name="image_url" invisible="1"/>
+            <field name="description"/>
+          </group>
+        </sheet>
+      </form>
     </field>
   </record>
 

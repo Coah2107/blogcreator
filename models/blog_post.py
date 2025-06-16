@@ -77,31 +77,37 @@ class BlogNote(models.Model):
     # Thêm trường cho nhiều hình ảnh (sử dụng Many2many)
     image_ids = fields.One2many("blogcreator.image", "note_id", string="Hình ảnh")
 
-    thumbnail = fields.Binary(
-        string="Hình thu nhỏ (Thumbnail)",
-        attachment=True,
-        help="Hình thu nhỏ sẽ được hiển thị khi xem danh sách các bài viết",
-    )
-    thumbnail_name = fields.Char(string="Tên file thumbnail")
-    use_main_as_thumbnail = fields.Boolean(
-        string="Sử dụng hình ảnh chính làm thumbnail",
-        default=True,
-        help="Nếu được chọn, hình ảnh chính sẽ được sử dụng làm thumbnail",
+    n8n_response_ids = fields.One2many(
+        "blogcreator.n8n.response", "note_id", string="N8n Responses"
     )
 
-    
-    n8n_response_ids = fields.One2many('blogcreator.n8n.response', 'note_id', string="N8n Responses")
+    last_n8n_response_id = fields.Many2one(
+        "blogcreator.n8n.response",
+        string="Latest Response",
+        compute="_compute_last_response",
+        store=False,
+    )
+    last_n8n_status = fields.Integer(
+        related="last_n8n_response_id.status_code", string="Latest Status", store=False
+    )
+    last_n8n_success = fields.Boolean(
+        related="last_n8n_response_id.success", string="Latest Success", store=False
+    )
 
-    last_n8n_response_id = fields.Many2one('blogcreator.n8n.response', string="Latest Response",
-                                         compute="_compute_last_response", store=False)
-    last_n8n_status = fields.Integer(related="last_n8n_response_id.status_code", string="Latest Status", store=False)
-    last_n8n_success = fields.Boolean(related="last_n8n_response_id.success", string="Latest Success", store=False)
-
-    @api.depends('n8n_response_ids')
+    @api.depends("n8n_response_ids")
     def _compute_last_response(self):
         for record in self:
-            record.last_n8n_response_id = self.env['blogcreator.n8n.response'].search(
-                [('note_id', '=', record.id)], order='response_time desc', limit=1)
+            record.last_n8n_response_id = self.env["blogcreator.n8n.response"].search(
+                [("note_id", "=", record.id)], order="response_time desc", limit=1
+            )
+
+    def _get_thumbnail_url(self):
+        thumbnail_img = self.image_ids.filtered(lambda img: img.is_thumbnail)
+        if thumbnail_img:
+            return thumbnail_img[0].image_url
+        elif self.image_ids:
+            return self.image_ids[0].image_url
+        return None
 
     def _initialize_cloudinary(self):
         """Khởi tạo cấu hình Cloudinary từ System Parameters"""
@@ -431,56 +437,6 @@ class BlogNote(models.Model):
             # Khởi tạo danh sách để lưu các URL hình ảnh từ Cloudinary
             cloudinary_images = []
             main_cloudinary_image = None
-            thumbnail_cloudinary_url = None
-
-            if not self.use_main_as_thumbnail and self.thumbnail:
-                try:
-                    # Upload thumbnail lên Cloudinary
-                    _logger.info("Uploading custom thumbnail to Cloudinary")
-
-                    # Chuyển đổi dữ liệu hình ảnh sang định dạng phù hợp
-                    thumbnail_data = self.thumbnail
-                    if not isinstance(thumbnail_data, str):
-                        # Nếu thumbnail_data là bytes, chuyển đổi sang base64 string
-                        _logger.info("Converting binary thumbnail data to base64")
-                        thumbnail_data = (
-                            base64.b64encode(thumbnail_data).decode("utf-8")
-                            if isinstance(thumbnail_data, bytes)
-                            else thumbnail_data
-                        )
-
-                    # Chuẩn bị tên public_id từ tiêu đề bài viết
-                    blog_title_slug = regex.sub(
-                        r"[^a-zA-Z0-9_]", "_", self.title.lower()
-                    )
-                    public_id = f"blog_{self.id}_{blog_title_slug}_thumbnail"
-
-                    # Upload lên Cloudinary
-                    response = self.upload_to_cloudinary(
-                        thumbnail_data,
-                        public_id=public_id,
-                        folder="blog_creator/thumbnails",
-                        is_thumbnail=True,
-                    )
-
-                    if response and response.get("secure_url"):
-                        thumbnail_cloudinary_url = response["secure_url"]
-                        _logger.info(
-                            f"Thumbnail uploaded to Cloudinary: {thumbnail_cloudinary_url}"
-                        )
-                except Exception as e:
-                    error_msg = str(e)
-                    _logger.error(
-                        f"Error uploading thumbnail to Cloudinary: {error_msg}"
-                    )
-                    _logger.exception("Exception details:")
-                    debug_exceptions.append(
-                        {
-                            "location": "thumbnail",
-                            "error": error_msg,
-                            "traceback": traceback.format_exc(),
-                        }
-                    )
 
             # Xử lý hình ảnh chính (nếu có)
             if self.image:
@@ -529,10 +485,6 @@ class BlogNote(models.Model):
                                 "is_main": True,
                             }
                         )
-
-                        if self.use_main_as_thumbnail and not thumbnail_cloudinary_url:
-                            thumbnail_cloudinary_url = main_cloudinary_image
-                            _logger.info("Using main image as thumbnail")
 
                 except Exception as e:
                     error_msg = str(e)
@@ -774,7 +726,8 @@ class BlogNote(models.Model):
                                     ),
                                     "description": (
                                         img_record.description
-                                        if hasattr(img_record, "description") and img_record.description
+                                        if hasattr(img_record, "description")
+                                        and img_record.description
                                         else ""
                                     ),
                                     "width": response.get("width"),
@@ -843,6 +796,8 @@ class BlogNote(models.Model):
                     }
                 )
 
+            thumbnail_url = self._get_thumbnail_url()
+            
             # Chuẩn bị dữ liệu để xuất
             export_data = {
                 "id": self.id,
@@ -855,7 +810,7 @@ class BlogNote(models.Model):
                 "is_published": self.is_published,
                 "create_date": fields.Datetime.to_string(self.create_date),
                 "user": self.env.user.name,
-                "thumbnail": thumbnail_cloudinary_url,
+                "thumbnail": thumbnail_url,
                 "content_images": content_images,
             }
 
@@ -909,15 +864,17 @@ class BlogNote(models.Model):
                 webhook_url,
                 json=export_data,
                 headers={"Content-Type": "application/json"},
-                timeout=30,
+                timeout=40,
             )
 
-            self.env['blogcreator.n8n.response'].create({
-                'note_id': self.id,
-                'response_time': fields.Datetime.now(),
-                'status_code': response.status_code,
-                'response_content': response.text,
-            })
+            self.env["blogcreator.n8n.response"].create(
+                {
+                    "note_id": self.id,
+                    "response_time": fields.Datetime.now(),
+                    "status_code": response.status_code,
+                    "response_content": response.text,
+                }
+            )
 
             # Kiểm tra phản hồi
             if response.status_code in (200, 201):
@@ -963,10 +920,12 @@ class BlogNote(models.Model):
     def retry_export_to_n8n(self):
         """Thử lại việc xuất sang n8n"""
         self.ensure_one()
-        self.write({
-            'exported_to_n8n': False,
-            'export_date': False,
-        })
+        self.write(
+            {
+                "exported_to_n8n": False,
+                "export_date": False,
+            }
+        )
         self.update_state()
         self.message_post(body="Đã reset trạng thái xuất sang n8n để thử lại")
         return self.export_to_n8n()

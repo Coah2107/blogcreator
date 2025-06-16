@@ -1,0 +1,39 @@
+.bc_kanban_card {
+  width: 180px;
+  min-height: 270px;
+  margin: 0px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: #fff;
+}
+.bc_kanban_img {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+.bc_kanban_title {
+  font-weight: bold;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: 4px;
+  color: #555;
+}
+.bc_kanban_desc {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  margin-bottom: 8px;
+}
+.bc_kanban_actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: auto;
+}
