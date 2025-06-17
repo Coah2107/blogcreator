@@ -37,17 +37,23 @@
               <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 400}"/>
             </page>
             <page string="Hình ảnh">
-              <field name="image_ids" mode="kanban" options="{'title': 'Thêm ảnh mới'}">
+              <div class="mb-3">
+                <button name="action_add_image" string="Thêm hình ảnh" type="object" class="btn btn-primary"/>
+              </div>
+              <field name="image_ids" mode="kanban" options="{'create': false}" context="{'default_note_id': id}">
                 <kanban>
                   <field name="id"/>
                   <field name="image"/>
-                  <field name="name"/>
+                  <field name="name" readonly="1"/>
                   <field name="description"/>
                   <field name="is_thumbnail"/>
                   <templates>
                     <t t-name="kanban-box">
                       <div class="bc_kanban_card">
-                        <img t-att-src="kanban_image('blogcreator.image', 'image', record.id.raw_value)" class="bc_kanban_img"/>
+                        <div t-if="record.is_thumbnail.raw_value" class="ribbon ribbon-top-right">
+                          <span class="bg-success">Thumbnail</span>
+                        </div>
+                        <img t-att-src="kanban_image('blogcreator.image', 'image', record.id.raw_value)" class="bc_kanban_img" alt="Image Preview"/>
                         <div class="bc_kanban_title">
                           <t t-esc="record.name.value"/>
                         </div>
@@ -55,10 +61,10 @@
                           <t t-esc="record.description.value"/>
                         </div>
                         <div class="bc_kanban_actions">
-                          <a type="edit" class="btn btn-sm btn-primary" title="Sửa">
+                          <a type="edit" class="btn btn-md btn-primary" title="Sửa" role="button">
                             <i class="fa fa-pencil"/>
                           </a>
-                          <a type="delete" class="btn btn-sm btn-danger" title="Xóa">
+                          <a type="delete" class="btn btn-md btn-danger" title="Xóa" role="button">
                             <i class="fa fa-trash"/>
                           </a>
                         </div>
@@ -69,7 +75,7 @@
               </field>
             </page>
             <!--  -->
-            <page string="N8n Responses" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
+            <page string="Lịch sử tạo bài" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
               <field name="last_n8n_response_id" invisible="1"/>
               <field name="last_n8n_status" invisible="1"/>
               <field name="last_n8n_success" invisible="1"/>
@@ -132,9 +138,9 @@
         <sheet>
           <group>
             <field name="name"/>
-            <field name="sequence"/>
-            <field name="is_thumbnail"/>
-            <field name="note_id" invisible="1"/>
+            <field name="note_id" readonly="1"/>
+            <field name="sequence" readonly="1"/>
+            <field name="is_thumbnail" widget="boolean"/>
             <field name="image" widget="image"/>
             <field name="image_url" invisible="1"/>
             <field name="description"/>

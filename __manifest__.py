@@ -13,20 +13,16 @@
     "version": "0.1",
     "depends": ["base", "mail"],
     "external_dependencies": {
-        "python": ["cloudinary", "bs4"],  # Thêm cloudinary vào đây
+        "python": ["cloudinary", "bs4"],
     },
     "data": [
         "security/blogcreator_security.xml",
         "security/ir.model.access.csv",
         "views/views.xml",
-        "views/templates.xml",
+        "views/n8n_response_views.xml",
         "views/menu.xml",
         "views/res_config_settings_views.xml",
-        "views/n8n_response_views.xml",
-        "data/n8n_sequence.xml",
-    ],
-    "demo": [
-        "demo/demo.xml",
+        # "data/n8n_sequence.xml",
     ],
     "installable": True,
     "application": True,
