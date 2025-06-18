@@ -39,9 +39,6 @@ class BlogImage(models.Model):
 
     @api.constrains("sequence", "note_id")
     def _check_unique_sequence(self):
-        """
-        Ensure that sequence values are unique within a note.
-        """
         for record in self:
             if record.note_id and not record.is_thumbnail:
                 duplicate_sequence = self.search(
@@ -82,7 +79,7 @@ class BlogImage(models.Model):
             res["sequence"] = next_sequence
 
             if "name" in fields_list:
-                res["name"] = f"Hình {next_sequence}"
+                res["name"] = f"Hinh{next_sequence}"
         elif is_thumbnail and "name" in fields_list:
             res["name"] = "Thumbnail"
         return res
@@ -121,7 +118,7 @@ class BlogImage(models.Model):
 
             vals["sequence"] = next_sequence
             if "name" not in vals or not vals.get("name"):
-                vals["name"] = f"Hình {next_sequence}"
+                vals["name"] = f"Hinh{next_sequence}"
         elif is_thumbnail:
             # Không quan tâm đến sequence cho thumbnail
             vals["sequence"] = 0

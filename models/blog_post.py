@@ -23,6 +23,7 @@ class BlogNote(models.Model):
     content = fields.Html(string="Nội dung", tracking=True)
     note_type = fields.Selection(
         [
+            ("general", "Chọn Thể Loại"),
             ("culinary", "Ẩm Thực"),
             ("entertainment", "Giải Trí"),
             ("wellness_healing", "Sức Khỏe & Thư Giãn"),
@@ -46,7 +47,7 @@ class BlogNote(models.Model):
     state = fields.Selection(
         [
             ("draft", "Nháp"),
-            ("exported", "Đã xuất sang n8n"),
+            ("exported", "Đã tạo bài viết tự động"),
             ("approved", "Đã duyệt"),
         ],
         string="Trạng thái",
@@ -107,55 +108,59 @@ class BlogNote(models.Model):
             return self.image_ids[0].image_url
         return None
 
-    @api.constrains("is_published", "exported_to_n8n")
-    def _check_state_changes(self):
-        """Cập nhật state khi is_published hoặc exported_to_n8n thay đổi"""
-        for record in self:
-            if record.exported_to_n8n and record.state != "exported":
-                record.state = "exported"
-            elif (
-                record.is_published
-                and not record.exported_to_n8n
-                and record.state != "approved"
-            ):
-                record.state = "approved"
-            elif (
-                not record.is_published
-                and not record.exported_to_n8n
-                and record.state != "draft"
-            ):
-                record.state = "draft"
+    # @api.constrains("is_published", "exported_to_n8n")
+    # def _check_state_changes(self):
+    #     """Cập nhật state khi is_published hoặc exported_to_n8n thay đổi"""
+    #     for record in self:
+    #         if record.exported_to_n8n and record.state != "exported":
+    #             record.state = "exported"
+    #         elif (
+    #             record.is_published
+    #             and not record.exported_to_n8n
+    #             and record.state != "approved"
+    #         ):
+    #             record.state = "approved"
+    #         elif (
+    #             not record.is_published
+    #             and not record.exported_to_n8n
+    #             and record.state != "draft"
+    #         ):
+    #             record.state = "draft"
 
-    def update_state(self):
-        for record in self:
-            current_state = record.state
-            if record.exported_to_n8n:
-                new_state = "exported"
-            elif record.is_published:
-                new_state = "approved"
-            else:
-                new_state = "draft"
+    # def update_state(self):
+    #     for record in self:
+    #         current_state = record.state
+    #         if record.exported_to_n8n:
+    #             new_state = "exported"
+    #         elif record.is_published:
+    #             new_state = "approved"
+    #         else:
+    #             new_state = "draft"
 
-            if current_state != new_state:
-                record._write({"state": new_state})
-        return True
+    #         if current_state != new_state:
+    #             record._write({"state": new_state})
+    #     return True
 
-    def mark_as_exported(self):
-        """Đánh dấu note đã được xuất sang n8n"""
-        for record in self:
-            record.write(
-                {
-                    "exported_to_n8n": True,
-                    "export_date": fields.Datetime.now(),
-                }
-            )
-            record.update_state()
-            record.message_post(body="Đã xuất thành công sang n8n")
-        return True
+    # def mark_as_exported(self):
+    #     """Đánh dấu note đã được xuất sang n8n"""
+    #     for record in self:
+    #         record.write(
+    #             {
+    #                 "exported_to_n8n": True,
+    #                 "export_date": fields.Datetime.now(),
+    #             }
+    #         )
+    #         record.update_state()
+    #         record.message_post(body="Đã xuất thành công sang n8n")
+    #     return True
 
     def export_to_n8n(self):
         """Hàm chuẩn bị và xuất dữ liệu sang n8n"""
         self.ensure_one()
+
+        if self.state != "draft":
+            raise UserError("Chỉ có thể tạo bài viết từ trạng thái nháp!")
+
         try:
             import re as regex
 
@@ -477,7 +482,7 @@ class BlogNote(models.Model):
                     {
                         "url": img.get("url"),
                         "caption": img.get("description", ""),
-                        "sequence": img.get("sequence", 0),
+                        "key": img.get("alt"),
                     }
                 )
 
@@ -546,9 +551,6 @@ class BlogNote(models.Model):
                     "image_ids_details": image_ids_details,
                 }
 
-            _logger.info(f"Sending data to n8n webhook: {webhook_url}")
-            _logger.info(f"Number of Cloudinary images: {len(cloudinary_images)}")
-
             # Gửi dữ liệu tới n8n qua webhook
             response = requests.post(
                 webhook_url,
@@ -569,13 +571,27 @@ class BlogNote(models.Model):
             # Kiểm tra phản hồi
             if response.status_code in (200, 201):
                 # Nếu thành công, đánh dấu là đã xuất
-                self.mark_as_exported()
+                self.write(
+                    {
+                        "exported_to_n8n": True,
+                        "export_date": fields.Datetime.now(),
+                        "state": "exported",
+                    }
+                )
+
+                self.message_post(body="Đã tạo bài viết thành công")
+
                 return {
-                    "type": "ir.actions.client",
+                    "type": "ir.actions.act_window",
+                    "res_model": "blogcreator.note",
+                    "res_id": self.id,
+                    "view_mode": "form",
+                    "target": "current",
+                    "context": {"form_view_ref": "blogcreator.view_blogpost_form"},
                     "tag": "display_notification",
                     "params": {
                         "title": "Thành công",
-                        "message": f'Đã xuất bài viết "{self.title}" sang n8n thành công',
+                        "message": f'Bài viết "{self.title}" đã được tạo.',
                         "type": "success",
                         "sticky": False,
                     },
@@ -621,31 +637,59 @@ class BlogNote(models.Model):
         return self.export_to_n8n()
 
     def action_approve(self):
-        """Đánh dấu bài viết là đã duyệt"""
-        for record in self:
-            record.write({"is_published": True})
-            record.update_state()
-        return True
+        self.ensure_one()
+
+        if self.state != "exported":
+            raise UserError("Chỉ có thể xuất bản bài viết đã được tạo!")
+
+        self.write({"is_published": True, "state": "approved"})
+
+        self.message_post(body="Đã xuất bản bài viết")
+
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "blogcreator.note",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
+    def action_recreate_post(self):
+        self.ensure_one()
+
+        if self.state not in ["exported", "approved"]:
+            raise UserError("Chỉ có thể tạo lại bài viết đã được tạo hoặc đã xuất bản!")
+
+        self.write(
+            {
+                "exported_to_n8n": False,
+                "export_date": False,
+                "is_published": False,
+                "state": "draft",
+            }
+        )
+
+        self.message_post(body="Bắt đầu tạo lại bài viết...")
+
+        return self.export_to_n8n()
 
     def action_unapprove(self):
-        """Hủy xuất bản bài viết"""
-        for record in self:
-            record.write({"is_published": False})
-            record.update_state()
-        return True
+        self.ensure_one()
 
-    def action_reset_export(self):
-        """Reset trạng thái xuất sang n8n (để có thể xuất lại)"""
-        for record in self:
-            record.write(
-                {
-                    "exported_to_n8n": False,
-                    "export_date": False,
-                }
-            )
-            record.update_state()
-            record.message_post(body="Đã reset trạng thái xuất sang n8n")
-        return True
+        if self.state != "approved":
+            raise UserError("Chỉ có thể hủy xuất bản bài viết đã được xuất bản!")
+
+        self.write({"is_published": False, "state": "exported"})
+
+        self.message_post(body="Đã hủy xuất bản bài viết")
+
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "blogcreator.note",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+        }
 
     def action_add_image(self):
         """Thêm hình ảnh mới bằng cách mở form với context đúng"""

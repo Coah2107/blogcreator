@@ -8,10 +8,19 @@
       <form string="Blog Post">
         <header>
           <field name="state" widget="statusbar" statusbar_visible="draft,exported,approved"/>
-          <button name="export_to_n8n" string="Tạo bài viết" type="object" class="oe_highlight" attrs="{'invisible': ['|', ('state', '=', 'exported'), ('is_published', '=', False)]}" help="Xuất dữ liệu sang n8n"/>
-          <button name="action_approve" string="Xuất bản" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'draft')]}"/>
-          <button name="action_unapprove" string="Hủy xuất bản" type="object" attrs="{'invisible': [('state', 'not in', ['approved', 'exported'])]}"/>
-          <button name="action_reset_export" string="Reset xuất n8n" type="object" attrs="{'invisible': [('state', '!=', 'exported')]}"/>
+
+          <!-- Button 1: DRAFT state - Hiển thị "Tạo bài viết" -->
+          <button name="export_to_n8n" string="Tạo bài viết" type="object" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'draft')]}" help="Tạo bài viết qua n8n"/>
+
+          <!-- Button 2: EXPORTED state - Hiển thị "Xuất bản" và "Tạo lại" -->
+          <button name="action_approve" string="Xuất bản" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Xuất bản bài viết"/>
+
+          <button name="action_recreate_post" string="TẠO LẠI BÀI VIẾT" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Tạo lại bài viết qua n8n"/>
+
+          <!-- Button 3: APPROVED state - Hiển thị "Hủy xuất bản" và "Tạo lại" -->
+          <button name="action_unapprove" string="Hủy xuất bản" type="object" class="btn-secondary" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Hủy xuất bản bài viết"/>
+
+          <button name="action_recreate_post" string="TẠO LẠI BÀI VIẾT" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Tạo lại bài viết qua n8n"/>
         </header>
         <sheet>
           <div class="oe_title">
@@ -22,14 +31,13 @@
           <group>
             <group>
               <field name="note_type"/>
-              <field name="tags" placeholder="Ví dụ: odoo,n8n,blog"/>
+              <field name="tags" placeholder="Ví dụ: odoo, n8n, blog"/>
               <field name="user_id"/>
             </group>
             <group>
               <field name="is_published"/>
               <field name="exported_to_n8n"/>
               <field name="export_date" attrs="{'invisible': [('exported_to_n8n', '=', False)]}"/>
-              <field name="state" invisible="1"/>
             </group>
           </group>
           <notebook>
@@ -162,7 +170,7 @@
         <field name="user_id"/>
         <filter string="Nháp" name="draft" domain="[('state', '=', 'draft')]"/>
         <filter string="Đã xuất bản" name="approved" domain="[('state', '=', 'approved')]"/>
-        <filter string="Đã xuất sang n8n" name="exported" domain="[('state', '=', 'exported')]"/>
+        <filter string="Bài viết đã được tạo" name="exported" domain="[('state', '=', 'exported')]"/>
         <filter string="Bài của tôi" name="my_posts" domain="[('user_id', '=', uid)]"/>
         <group expand="0" string="Group By">
           <filter string="Loại ghi chú" name="group_type" context="{'group_by': 'note_type'}"/>
