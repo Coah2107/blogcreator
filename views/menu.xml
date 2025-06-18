@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <!-- Menu chính -->
-    <menuitem id="menu_blogcreator_root" name="Blog Creator" web_icon="blogcreator,static/description/menu_icon.png" sequence="45"/>
+    <menuitem id="menu_blogcreator_root" name="Blog Creator" web_icon="blogcreator,static/description/menu_icon.png" sequence="45" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
 
     <!-- Menu con - Blog Posts -->
-    <menuitem id="menu_blogcreator_posts" name="Blog Posts" parent="menu_blogcreator_root" action="action_blogpost" sequence="10"/>
-    <menuitem id="menu_blogcreator_exported_posts" name="Bài đã được duyệt" parent="menu_blogcreator_root" action="exported_blogpost" sequence="30"/>
-    <menuitem id="menu_n8n_response" name="Lịch sử gửi bài" parent="menu_blogcreator_root" action="action_n8n_response" sequence="20"/>
+    <menuitem id="menu_blogcreator_posts" name="Blog Posts" parent="menu_blogcreator_root" action="action_blogpost" sequence="10" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
+    <menuitem id="menu_blogcreator_exported_posts" name="Bài đã được duyệt" parent="menu_blogcreator_root" action="exported_blogpost" sequence="30" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
+    <menuitem id="menu_n8n_response" name="Lịch sử gửi bài" parent="menu_blogcreator_root" action="action_n8n_response" sequence="20" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
 </odoo>
