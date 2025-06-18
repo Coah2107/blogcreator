@@ -5,5 +5,3 @@ access_blogcreator_note_manager,blogcreator.note.manager,model_blogcreator_note,
 access_blogcreator_n8n_response_reader,blogcreator.n8n.response.reader,model_blogcreator_n8n_response,blogcreator.group_blogcreator_reader,1,0,0,0
 access_blogcreator_n8n_response_author,blogcreator.n8n.response.author,model_blogcreator_n8n_response,blogcreator.group_blogcreator_author,1,0,0,0
 access_blogcreator_n8n_response_manager,blogcreator.n8n.response.manager,model_blogcreator_n8n_response,blogcreator.group_blogcreator_manager,1,1,1,1
-access_blogcreator_image_position_wizard,blogcreator.image.position.wizard,model_blogcreator_image_position_wizard,base.group_user,1,1,1,1
-access_blogcreator_image_position_line,blogcreator.image.position.line,model_blogcreator_image_position_line,base.group_user,1,1,1,1
