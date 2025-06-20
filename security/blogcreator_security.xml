@@ -78,7 +78,7 @@
     <record id="rule_blogcreator_author_own_images" model="ir.rule">
         <field name="name">Authors can only access their own images</field>
         <field name="model_id" ref="model_blogcreator_image"/>
-        <field name="domain_force">[('note_id.user_id', '=', user.id)]</field>
+        <field name="domain_force">['|', ('note_id.user_id', '=', user.id), ('note_id', '=', False)]</field>
         <field name="groups" eval="[(4, ref('blogcreator.group_blogcreator_author'))]"/>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="True"/>
