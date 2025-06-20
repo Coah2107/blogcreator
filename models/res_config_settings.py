@@ -40,6 +40,12 @@ class ResConfigSettings(models.TransientModel):
         help="Comma-separated list of fields to include in the webhook payload",
     )
 
+    n8n_webhook_url = fields.Char(
+        string="n8n Webhook URL",
+        config_parameter="blogcreator.n8n_webhook_url",
+        help="Đường dẫn webhook của workflow n8n nhận dữ liệu bài viết từ Odoo",
+    )
+
     def test_cloudinary_connection(self):
         """Test the Cloudinary connection"""
         try:

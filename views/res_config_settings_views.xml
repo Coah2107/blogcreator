@@ -7,8 +7,9 @@
         <field name="arch" type="xml">
             <xpath expr="//div[hasclass('settings')]" position="inside">
                 <div class="app_settings_block" data-string="BlogCreator" string="BlogCreator" data-key="blogcreator">
-                    <h2>Cloudinary Configuration</h2>
+                    <h2>Configuration Blog Creator</h2>
                     <div class="row mt16 o_settings_container">
+
                         <div class="col-12 col-lg-6 o_setting_box">
                             <div class="o_setting_right_pane">
                                 <span class="o_form_label">Cloudinary Credentials</span>
@@ -33,6 +34,18 @@
                                 </div>
                                 <div class="mt8">
                                     <button name="test_cloudinary_connection" string="Test Connection" type="object" class="btn-primary"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-lg-6 o_setting_box">
+                            <div class="o_setting_right_pane">
+                                <span class="o_form_label">n8n Webhook Settings</span>
+                                <div class="text-muted">Configure webhook n8n to recive Odoo form</div>
+
+                                <div class="mt16">
+                                    <span class="o_form_label">Webhook URL</span>
+                                    <field name="n8n_webhook_url" placeholder="https://n8n.example.com/webhook/blog"/>
                                 </div>
                             </div>
                         </div>
