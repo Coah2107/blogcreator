@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Action blog posts -->
+    <record id="action_blogpost" model="ir.actions.act_window">
+        <field name="name">Danh sách bài viết</field>
+        <field name="res_model">blogcreator.note</field>
+        <field name="view_mode">tree,form</field>
+        <field name="target">current</field>
+        <field name="context">{'search_default_my_posts': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo bài viết blog đầu tiên của bạn
+            </p>
+            <p>
+                Bạn có thể tạo các bài viết blog và xuất chúng sang n8n.
+            </p>
+        </field>
+    </record>
+
+    <!-- Action exported blog posts -->
+    <record id="exported_blogpost" model="ir.actions.act_window">
+        <field name="name">Bài đã được duyệt</field>
+        <field name="res_model">blogcreator.note</field>
+        <field name="view_mode">tree,form</field>
+        <field name="target">current</field>
+        <field name="domain">[('state', '=', 'approved')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+        Không có bài viết đã được duyệt
+            </p>
+            <p>
+        Các bài viết đã được duyệt sẽ xuất hiện ở đây.
+            </p>
+        </field>
+    </record>
+
+    <!-- Action waiting approval blog posts -->
+    <record id="waiting_approval_blogpost" model="ir.actions.act_window">
+        <field name="name">Bài đang chờ duyệt</field>
+        <field name="res_model">blogcreator.note</field>
+        <field name="view_mode">tree,form</field>
+        <field name="target">current</field>
+        <field name="domain">[('state', '=', 'exported'), ('is_published', '=', False)]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+        Không có bài viết nào đang chờ duyệt
+            </p>
+            <p>
+        Các bài viết đã được tạo và đang chờ duyệt sẽ xuất hiện ở đây.
+            </p>
+        </field>
+    </record>
+</odoo>

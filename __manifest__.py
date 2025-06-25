@@ -18,9 +18,10 @@
     "data": [
         "security/blogcreator_security.xml",
         "security/ir.model.access.csv",
-        "views/menu.xml",
         "views/n8n_response_views.xml",
         "views/res_config_settings_views.xml",
+        "views/actions.xml",
+        "views/menu.xml",
         "views/views.xml",
         # "data/n8n_sequence.xml",
     ],
