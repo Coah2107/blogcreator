@@ -13,14 +13,14 @@
           <button name="export_to_n8n" string="Tạo bài viết" type="object" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'draft')]}" help="Tạo bài viết qua n8n"/>
 
           <!-- Button 2: EXPORTED state - Hiển thị "Xuất bản" và "Tạo lại" -->
-          <button name="action_approve" string="Xuất bản" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Xuất bản bài viết"/>
+          <button name="action_approve" string="Phê duyệt" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Xuất bản bài viết" groups="blogcreator.group_blogcreator_manager"/>
 
-          <button name="action_recreate_post" string="TẠO LẠI BÀI VIẾT" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Tạo lại bài viết qua n8n"/>
+          <button name="action_recreate_post" string="Tạo lại bài viết" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Tạo lại bài viết qua n8n"/>
 
           <!-- Button 3: APPROVED state - Hiển thị "Hủy xuất bản" và "Tạo lại" -->
           <button name="action_unapprove" string="Hủy xuất bản" type="object" class="btn-secondary" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Hủy xuất bản bài viết"/>
 
-          <button name="action_recreate_post" string="TẠO LẠI BÀI VIẾT" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Tạo lại bài viết qua n8n"/>
+          <button name="action_recreate_post" string="Tạo lại bài viết" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Tạo lại bài viết qua n8n"/>
         </header>
         <sheet>
           <div class="oe_title">
@@ -31,6 +31,7 @@
           <group>
             <group>
               <field name="note_type"/>
+              <field name="note_type_prompt" widget="text"/>
               <field name="tags" placeholder="Ví dụ: odoo, n8n, blog"/>
               <field name="user_id"/>
             </group>
@@ -44,7 +45,7 @@
             <page string="Nội dung">
               <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 400}"/>
             </page>
-            <page string="Hình ảnh">
+            <!-- <page string="Hình ảnh">
               <div class="mb-3">
                 <button name="action_add_image" string="Thêm hình ảnh" type="object" class="btn btn-primary"/>
               </div>
@@ -81,7 +82,7 @@
                   </templates>
                 </kanban>
               </field>
-            </page>
+            </page> -->
             <!--  -->
             <page string="Lịch sử tạo bài" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
               <field name="last_n8n_response_id" invisible="1"/>
@@ -138,7 +139,7 @@
     </field>
   </record>
 
-  <record id="view_blogimage_form" model="ir.ui.view">
+  <!-- <record id="view_blogimage_form" model="ir.ui.view">
     <field name="name">blogcreator.image.form</field>
     <field name="model">blogcreator.image</field>
     <field name="arch" type="xml">
@@ -156,7 +157,7 @@
         </sheet>
       </form>
     </field>
-  </record>
+  </record> -->
 
   <!-- Search View -->
   <record id="view_blogpost_search" model="ir.ui.view">
@@ -183,7 +184,7 @@
 
   <!-- Action blog posts -->
   <record id="action_blogpost" model="ir.actions.act_window">
-    <field name="name">Blog Posts</field>
+    <field name="name">Danh sách bài viết</field>
     <field name="res_model">blogcreator.note</field>
     <field name="view_mode">tree,form</field>
     <field name="target">current</field>
@@ -204,6 +205,31 @@
     <field name="res_model">blogcreator.note</field>
     <field name="view_mode">tree,form</field>
     <field name="target">current</field>
-    <field name="domain">[('exported_to_n8n', '=', True)]</field>
+    <field name="domain">[('state', '=', 'approved')]</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Không có bài viết đã được duyệt
+      </p>
+      <p>
+        Các bài viết đã được duyệt sẽ xuất hiện ở đây.
+      </p>
+    </field>
+  </record>
+
+  <!-- Action waiting approval blog posts -->
+  <record id="waiting_approval_blogpost" model="ir.actions.act_window">
+    <field name="name">Bài đang chờ duyệt</field>
+    <field name="res_model">blogcreator.note</field>
+    <field name="view_mode">tree,form</field>
+    <field name="target">current</field>
+    <field name="domain">[('state', '=', 'exported'), ('is_published', '=', False)]</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">
+        Không có bài viết nào đang chờ duyệt
+      </p>
+      <p>
+        Các bài viết đã được tạo và đang chờ duyệt sẽ xuất hiện ở đây.
+      </p>
+    </field>
   </record>
 </odoo>

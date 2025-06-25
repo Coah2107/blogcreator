@@ -18,7 +18,7 @@
                     <group>
                         <group>
                             <field name="note_id" string="Bài viết"/>
-                            <field name="response_time" string="Thời gian nhận phản hồi"/>
+                            <field name="response_time" string="Thời gian nhận phản hồi" readonly="1"/>
                         </group>
                         <group>
                             <!-- <field name="status_code" string="Mã trạng thái"/> -->
@@ -28,7 +28,7 @@
                     </group>
                     <notebook>
                         <page string="Chi tiết phản hồi">
-                            <group string="Thông tin phản hồi">
+                            <group string="">
                                 <field name="formatted_response" string="Nội dung phản hồi" widget="html" attrs="{'invisible': [('formatted_response', '=', False)]}"/>
                             </group>
                             <div attrs="{'invisible': [('formatted_response', '!=', False)]}">
@@ -61,7 +61,7 @@
         <field name="name">blogcreator.n8n.response.tree</field>
         <field name="model">blogcreator.n8n.response</field>
         <field name="arch" type="xml">
-            <tree string="Lịch sử gửi bài" decoration-success="success" decoration-danger="not success">
+            <tree string="Lịch sử tạo bài" decoration-success="success" decoration-danger="not success">
                 <field name="response_time" string="Thời gian gửi"/>
                 <field name="note_id" string="Bài viết"/>
                 <field name="status_description" string="Trạng thái"/>
@@ -92,13 +92,13 @@
 
     <!-- Action -->
     <record id="action_n8n_response" model="ir.actions.act_window">
-        <field name="name">Lịch sử gửi bài</field>
+        <field name="name">Lịch sử tạo bài</field>
         <field name="res_model">blogcreator.n8n.response</field>
         <field name="view_mode">tree,form</field>
         <field name="context"></field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
-            Chưa có lịch sử gửi bài nào
+            Chưa có lịch sử tạo bài nào
             </p>
             <p>
             Màn hình này hiển thị lịch sử các lần gửi bài viết của bạn.
