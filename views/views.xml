@@ -17,7 +17,7 @@
           <!-- Nút Đăng bài - hiển thị ở trạng thái đã duyệt (chỉ giáo viên) -->
           <button name="action_publish" string="Đăng bài" type="object" class="btn-success" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Đăng bài viết này" groups="blogcreator.group_blogcreator_manager"/>
           <!-- Nút Hủy bài - hiển thị ở trạng thái nháp hoặc bị từ chối -->
-          <button name="action_cancel" string="Hủy bài" type="object" class="btn-secondary" attrs="{'invisible': [('state', 'not in', ['draft', 'rejected'])]}" help="Hủy bài viết này"/>
+          <button name="action_cancel" string="Hủy bài" type="object" class="btn-secondary" attrs="{'invisible': [('state', '=', 'cancelled')]}" help="Hủy bài viết này"/>
         </header>
         <sheet>
           <div class="oe_title">
@@ -51,9 +51,9 @@
               <field name="last_n8n_status" invisible="1"/>
               <field name="last_n8n_success" invisible="1"/>
 
-              <div class="oe_button_box" name="button_box">
+              <!-- <div class="oe_button_box" name="button_box">
                 <button name="retry_export_to_n8n" type="object" string="Thử lại xuất n8n" class="btn btn-warning" attrs="{'invisible': [('last_n8n_success', '=', True)]}"/>
-              </div>
+              </div> -->
 
               <div class="alert alert-success" role="alert" attrs="{'invisible': [('last_n8n_success', '=', False)]}">
                 <p>Response gần nhất thành công với mã <field name="last_n8n_status" readonly="1" class="oe_inline"/>
@@ -69,7 +69,7 @@
                   <field name="response_id"/>
                   <field name="success"/>
                   <field name="response_time"/>
-                  <button name="retry_export" string="Thử lại" type="object" attrs="{'invisible': [('success', '=', True)]}" icon="fa-refresh"/>
+                  <!-- <button name="retry_export" string="Thử lại" type="object" attrs="{'invisible': [('success', '=', True)]}" icon="fa-refresh"/> -->
                 </tree>
               </field>
             </page>

@@ -327,19 +327,31 @@ class BlogNote(models.Model):
                     response_data = json.loads(response.text)
                     if "final_content" in response_data:
                         final_content = response_data["final_content"]
-                        formatted_html = self._format_ai_content(final_content, cloudinary_images)
-                        self.write({
-                            "n8n_content": formatted_html
-                        })
+                        formatted_html = self._format_ai_content(
+                            final_content, cloudinary_images
+                        )
+                        self.write({"n8n_content": formatted_html})
                         _logger.info("Đã lưu nội dung từ response n8n")
                 except Exception as e:
                     _logger.error(f"Lỗi khi xử lý nội dung từ n8n: {str(e)}")
                     return self._show_error_notification(str(e))
 
-                self.message_post(body="Đã tạo nội dung AI thành công")
+                self.message_post(body="Đã tạo nội dung thành công")
 
                 return {
-                    "type": "ir.actions.client",
+                    "type": "ir.actions.act_window",
+                    "res_model": "blogcreator.note",
+                    "res_id": self.id,
+                    "view_mode": "form",
+                    "target": "current",
+                    "context": {
+                        "form_view_initial_mode": "edit",
+                        "force_activate_tab": "nội_dung",
+                    },
+                    "flags": {
+                        "mode": "edit",
+                        "initial_mode": "edit",
+                    },
                     "tag": "display_notification",
                     "params": {
                         "title": "Thành công",
@@ -361,23 +373,24 @@ class BlogNote(models.Model):
                 body=f"<p style='color:red'>Lỗi khi tạo nội dung AI: {error_msg}</p>"
             )
             return self._show_error_notification(error_msg)
-        
+
     def _format_ai_content(self, content, cloudinary_images=None):
         """Định dạng nội dung AI và chỉ thêm các class CSS"""
         try:
             import markdown
-            
+
             # Loại bỏ dòng ```markdown và ``` từ nội dung
             lines = content.splitlines()
-            filtered_lines = [line for line in lines if not line.strip().startswith("```")]
+            filtered_lines = [
+                line for line in lines if not line.strip().startswith("```")
+            ]
             cleaned_content = "\n".join(filtered_lines)
-            
+
             # Chuyển đổi Markdown thành HTML với một số extension
             html_content = markdown.markdown(
-                cleaned_content, 
-                extensions=['extra', 'nl2br', 'tables', 'sane_lists']
+                cleaned_content, extensions=["extra", "nl2br", "tables", "sane_lists"]
             )
-            
+
             # Thay thế placeholder hình ảnh nếu có
             if cloudinary_images:
                 for img in cloudinary_images:
@@ -386,19 +399,23 @@ class BlogNote(models.Model):
                     if img_key and img_url:
                         img_placeholder = f"({img_key})"
                         img_html = f'<figure class="ai-figure">'
-                        img_html += f'<img src="{img_url}" alt="{img_key}" class="ai-image">'
-                        img_html += f'<figcaption class="ai-caption">{img_key}</figcaption>'
-                        img_html += '</figure>'
+                        img_html += (
+                            f'<img src="{img_url}" alt="{img_key}" class="ai-image">'
+                        )
+                        img_html += (
+                            f'<figcaption class="ai-caption">{img_key}</figcaption>'
+                        )
+                        img_html += "</figure>"
                         html_content = html_content.replace(img_placeholder, img_html)
-            
+
             # Bọc trong div với class ai-content
             formatted_html = f'<div class="ai-content">{html_content}</div>'
-            
+
             return formatted_html
         except Exception as e:
             _logger.error(f"Lỗi khi định dạng nội dung AI: {str(e)}")
             return f"<div class='alert alert-warning'>Không thể định dạng nội dung: {str(e)}</div>{content}"
-        
+
     def submit_blog_post(self):
         """Nộp bài viết để xét duyệt"""
         self.ensure_one()
@@ -665,18 +682,18 @@ class BlogNote(models.Model):
             },
         }
 
-    def retry_export_to_n8n(self):
-        """Thử lại việc xuất sang n8n"""
-        self.ensure_one()
-        self.write(
-            {
-                "exported_to_n8n": False,
-                "export_date": False,
-            }
-        )
-        self.update_state()
-        self.message_post(body="Đã reset trạng thái xuất sang n8n để thử lại")
-        return self.export_to_n8n()
+    # def retry_export_to_n8n(self):
+    #     """Thử lại việc xuất sang n8n"""
+    #     self.ensure_one()
+    #     self.write(
+    #         {
+    #             "exported_to_n8n": False,
+    #             "export_date": False,
+    #         }
+    #     )
+    #     self.update_state()
+    #     self.message_post(body="Đã reset trạng thái xuất sang n8n để thử lại")
+    #     return self.export_to_n8n()
 
     def action_approve(self):
         self.ensure_one()
@@ -760,14 +777,18 @@ class BlogNote(models.Model):
         self.ensure_one()
 
         # Kiểm tra quyền - chỉ admin và người có quyền quản lý mới được hủy bài khi đã đăng/duyệt
-        if self.state in ["approved", "published"] and not self.env.user.has_group("blogcreator.group_blogcreator_manager"):
-            raise UserError(_("Chỉ giáo viên mới có quyền hủy bài viết đã duyệt hoặc đã đăng!"))
+        if self.state in ["approved", "published"] and not self.env.user.has_group(
+            "blogcreator.group_blogcreator_manager"
+        ):
+            raise UserError(
+                _("Chỉ giáo viên mới có quyền hủy bài viết đã duyệt hoặc đã đăng!")
+            )
 
         # Người tạo và quản lý đều có thể hủy ở trạng thái soạn thảo, gửi, từ chối
         # Chỉ quản lý mới có thể hủy ở trạng thái đã duyệt, đã đăng
         if self.state == "cancelled":
             raise UserError("Bài viết đã ở trạng thái hủy!")
-        
+
         # Ghi log tùy theo trạng thái trước khi hủy
         message = "Bài viết đã bị hủy"
         if self.state == "published":
@@ -775,10 +796,12 @@ class BlogNote(models.Model):
         elif self.state == "approved":
             message = "Bài viết đã bị hủy (trước đó ở trạng thái đã duyệt)"
 
-        self.write({
-            "state": "cancelled",
-            "is_published": False,
-        })
+        self.write(
+            {
+                "state": "cancelled",
+                "is_published": False,
+            }
+        )
 
         self.message_post(body=message)
 

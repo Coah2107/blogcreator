@@ -116,11 +116,11 @@ class N8nResponse(models.Model):
                 # Nếu không phải JSON hoặc có lỗi xử lý
                 record.formatted_response = f"<pre>{record.response_content}</pre>"
 
-    def retry_export(self):
-        """Thử lại việc xuất blog post sang n8n"""
-        self.ensure_one()
-        return (
-            self.note_id.retry_export_to_n8n()
-            if hasattr(self.note_id, "retry_export_to_n8n")
-            else {"type": "ir.actions.act_window_close"}
-        )
+    # def retry_export(self):
+    #     """Thử lại việc xuất blog post sang n8n"""
+    #     self.ensure_one()
+    #     return (
+    #         self.note_id.retry_export_to_n8n()
+    #         if hasattr(self.note_id, "retry_export_to_n8n")
+    #         else {"type": "ir.actions.act_window_close"}
+    #     )
