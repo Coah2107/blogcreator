@@ -17,7 +17,7 @@ class BlogNote(models.Model):
     _description = "Blog Notes for n8n Integration"
     _rec_name = "title"
     _order = "create_date desc"
-    _inherit = ["mail.thread", "mail.activity.mixin"]  # Thêm tính năng chatter
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     title = fields.Char(string="Tiêu đề", required=True, tracking=True)
     content = fields.Html(string="Nội dung", tracking=True)
@@ -44,18 +44,19 @@ class BlogNote(models.Model):
         required=True,
         tracking=True,
     )
-
     note_type_prompt = fields.Text(
         string="Ngữ điệu",
         compute="_compute_note_type_prompt",
         store=True,
     )
-
     state = fields.Selection(
         [
             ("draft", "Soạn thảo"),
-            ("exported", "Đã gửi bài"),
+            ("submitted", "Đã gửi"),
             ("approved", "Đã duyệt"),
+            ("published", "Đã đăng"),
+            ("rejected", "Bị từ chối"),
+            ("cancelled", "Đã hủy"),
         ],
         string="Trạng thái",
         default="draft",
@@ -75,18 +76,14 @@ class BlogNote(models.Model):
         default=lambda self: self.env.user,
         readonly=True,
     )
-
     image = fields.Binary(
         string="Hình ảnh chính",
         attachment=True,
         help="Hình ảnh sẽ được hiển thị ở đầu bài viết",
     )
-    # image_ids = fields.One2many("blogcreator.image", "note_id", string="Hình ảnh")
-
     n8n_response_ids = fields.One2many(
         "blogcreator.n8n.response", "note_id", string="N8n Responses"
     )
-
     last_n8n_response_id = fields.Many2one(
         "blogcreator.n8n.response",
         string="Latest Response",
@@ -98,6 +95,12 @@ class BlogNote(models.Model):
     )
     last_n8n_success = fields.Boolean(
         related="last_n8n_response_id.success", string="Latest Success", store=False
+    )
+
+    n8n_content = fields.Html(
+        string="Nội dung từ n8n",
+        help="Nội dung mới nhất được trả về từ n8n",
+        tracking=True,
     )
 
     @api.depends("note_type")
@@ -152,450 +155,281 @@ class BlogNote(models.Model):
 
         return None
 
-    # def export_to_n8n(self):
-    #     """Hàm chuẩn bị và xuất dữ liệu sang n8n"""
-    #     self.ensure_one()
+    def create_ai_content(self):
+        """Tạo nội dung AI và hiển thị trong tab 'Nội dung' mà không thay đổi trạng thái"""
+        self.ensure_one()
 
-    #     if self.state != "draft":
-    #         raise UserError("Chỉ có thể tạo bài viết từ trạng thái nháp!")
+        try:
+            # Khởi tạo biến
+            debug_exceptions = []
+            cloudinary_images = []
+            thumbnail_url = None
+            cloudinary_utils = self.env["blogcreator.cloudinary.utils"]
 
-    #     try:
-    #         import re as regex
+            # Lấy URL webhook từ system parameters
+            webhook_url = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_param("blogcreator.n8n_webhook_url")
+            )
 
-    #         # Khởi tạo biến debug_exceptions
-    #         debug_exceptions = []
-    #         cloudinary_utils = self.env["blogcreator.cloudinary.utils"]
+            if not webhook_url:
+                raise Exception("URL webhook n8n chưa được cấu hình.")
 
-    #         # Thêm logs để debug
-    #         _logger.info(
-    #             f"Starting export_to_n8n for blog: {self.title} (ID: {self.id})"
-    #         )
-    #         _logger.info(f"Image field exists: {hasattr(self, 'image')}")
-    #         _logger.info(f"Image field has value: {bool(self.image)}")
+            # Xử lý HTML content
+            html_content = self.content or ""
 
-    #         # Lấy URL webhook từ system parameters
-    #         webhook_url = (
-    #             self.env["ir.config_parameter"]
-    #             .sudo()
-    #             .get_param("blogcreator.n8n_webhook_url")
-    #         )
+            if html_content:
+                try:
+                    soup = BeautifulSoup(html_content, "html.parser")
 
-    #         if not webhook_url:
-    #             raise Exception(
-    #                 "URL webhook n8n chưa được cấu hình. Vui lòng thiết lập tham số 'blogcreator.n8n_webhook_url'"
-    #             )
+                    # Xử lý hình ảnh trong HTML
+                    img_tags = soup.find_all("img")
+                    _logger.info(f"Found {len(img_tags)} img tags in HTML content")
 
-    #         # Khởi tạo danh sách để lưu các URL hình ảnh từ Cloudinary
-    #         cloudinary_images = []
-    #         thumbnail_url = None
+                    # Tạo bản sao soup để xử lý text với markers
+                    text_soup = BeautifulSoup(str(soup), "html.parser")
+                    text_img_tags = text_soup.find_all("img")
 
-    #         # Xử lý hình ảnh chính (nếu có)
-    #         # if self.image:
-    #         #     try:
-    #         #         # Upload hình ảnh chính lên Cloudinary
-    #         #         _logger.info("Uploading main image to Cloudinary")
-    #         #         _logger.info(f"Image type: {type(self.image)}")
+                    # Xử lý từng hình ảnh
+                    for i, img_tag in enumerate(img_tags):
+                        src = img_tag.get("src", "")
+                        if not src:
+                            continue
 
-    #         #         # Chuyển đổi dữ liệu hình ảnh sang định dạng phù hợp
-    #         #         image_data = self.image
-    #         #         if not isinstance(image_data, str):
-    #         #             # Nếu image_data là bytes, chuyển đổi sang base64 string
-    #         #             _logger.info("Converting binary image data to base64")
-    #         #             image_data = (
-    #         #                 base64.b64encode(image_data).decode("utf-8")
-    #         #                 if isinstance(image_data, bytes)
-    #         #                 else image_data
-    #         #             )
+                        # Tạo key từ alt hoặc image number
+                        img_key = f"Image {i+1}"
 
-    #         #         # Chuẩn bị tên public_id từ tiêu đề bài viết
-    #         #         blog_title_slug = regex.sub(
-    #         #             r"[^a-zA-Z0-9_]", "_", self.title.lower()
-    #         #         )
-    #         #         public_id = f"blog_{self.id}_{blog_title_slug}_main"
+                        try:
+                            # Upload hình ảnh lên Cloudinary
+                            image_public_id = f"blog_{self.id}_content_image_{i+1}"
+                            response = cloudinary_utils.upload_to_cloudinary(
+                                src,
+                                public_id=image_public_id,
+                                folder="blog_creator/content_images",
+                                is_thumbnail=(i == 0),
+                            )
 
-    #         #         # Upload lên Cloudinary sử dụng class mới
-    #         #         response = cloudinary_utils.upload_to_cloudinary(
-    #         #             image_data,
-    #         #             public_id=public_id,
-    #         #             folder="blog_creator/main_images",
-    #         #         )
+                            # Lấy URL từ Cloudinary
+                            cloudinary_url = response.get("secure_url")
 
-    #         #         if response and response.get("secure_url"):
-    #         #             main_cloudinary_image = response["secure_url"]
-    #         #             _logger.info(
-    #         #                 f"Main image uploaded to Cloudinary: {main_cloudinary_image}"
-    #         #             )
+                            # Lưu thumbnail URL (hình đầu tiên)
+                            if i == 0 and cloudinary_url:
+                                thumbnail_url = cloudinary_url
 
-    #         #             # Thêm hình ảnh chính vào danh sách hình ảnh
-    #         #             cloudinary_images.append(
-    #         #                 {
-    #         #                     "url": main_cloudinary_image,
-    #         #                     "alt": self.title,
-    #         #                     "width": response.get("width"),
-    #         #                     "height": response.get("height"),
-    #         #                     "is_main": True,
-    #         #                 }
-    #         #             )
+                            # Thêm vào danh sách hình ảnh
+                            cloudinary_images.append(
+                                {"url": cloudinary_url, "key": img_key, "id": i + 1}
+                            )
 
-    #         #     except Exception as e:
-    #         #         error_msg = str(e)
-    #         #         _logger.error(
-    #         #             f"Error uploading main image to Cloudinary: {error_msg}"
-    #         #         )
-    #         #         _logger.exception("Exception details:")
-    #         #         debug_exceptions.append(
-    #         #             {
-    #         #                 "location": "main_image",
-    #         #                 "error": error_msg,
-    #         #                 "traceback": traceback.format_exc(),
-    #         #             }
-    #         #         )
+                            # Thay thế hình ảnh trong text_soup với marker
+                            marker = text_soup.new_string(f"({img_key})")
+                            text_img_tags[i].replace_with(marker)
 
-    #         # Xử lý hình ảnh trong HTML content
-    #         html_content = self.content or ""
-    #         plain_text_with_markers = ""
+                        except Exception as e:
+                            _logger.error(f"Error processing image {i+1}: {str(e)}")
+                            debug_exceptions.append(
+                                {"location": f"content_image_{i+1}", "error": str(e)}
+                            )
 
-    #         if html_content:
-    #             plain_text_content = ""
-    #             try:
-    #                 soup = BeautifulSoup(html_content, "html.parser")
+                    # Trích xuất văn bản với markers
+                    paragraphs = []
+                    for elem in text_soup.find_all(
+                        ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li", "div"]
+                    ):
+                        text = elem.get_text(strip=True)
+                        if text:
+                            paragraphs.append(text)
 
-    #                 # Trích xuất văn bản thuần túy
-    #                 paragraphs = soup.find_all(
-    #                     ["p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]
-    #                 )
-    #                 plain_text_parts = []
+                    # Kết hợp thành văn bản hoàn chỉnh
+                    plain_text_with_markers = "\n\n".join(paragraphs)
 
-    #                 for p in paragraphs:
-    #                     text = p.get_text(strip=True)
-    #                     if text:
-    #                         plain_text_parts.append(text)
+                    # Nếu không tìm thấy paragraphs, lấy toàn bộ text
+                    if not plain_text_with_markers:
+                        plain_text_with_markers = text_soup.get_text(
+                            separator="\n\n", strip=True
+                        )
 
-    #                 plain_text_content = "\n\n".join(plain_text_parts)
-    #                 if not plain_text_content:
-    #                     plain_text_content = soup.get_text(separator="\n\n", strip=True)
+                except Exception as e:
+                    _logger.error(f"Error processing HTML content: {str(e)}")
+                    plain_text_with_markers = ""
+                    debug_exceptions.append(
+                        {"location": "html_content", "error": str(e)}
+                    )
+            else:
+                plain_text_with_markers = ""
 
-    #                 _logger.info(
-    #                     f"Plain text content extracted: {plain_text_content[:100]}..."
-    #                 )
+            # Chuẩn bị dữ liệu để xuất
+            export_data = {
+                "id": self.id,
+                "title": self.title,
+                "content": plain_text_with_markers,
+                "note_type": dict(self._fields["note_type"].selection).get(
+                    self.note_type
+                ),
+                "tags": self.tags,
+                "create_date": fields.Datetime.to_string(self.create_date),
+                "user": self.env.user.name,
+                "thumbnail": thumbnail_url,
+                "content_images": cloudinary_images,
+                "ai_content_only": True,  # Thêm flag để n8n biết đây là yêu cầu chỉ tạo nội dung
+            }
 
-    #                 # Xử lý hình ảnh
-    #                 img_tags = soup.find_all("img")
-    #                 _logger.info(f"Found {len(img_tags)} img tags in HTML content")
+            # Thêm debug info nếu cần
+            include_debug = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_param("blogcreator.include_debug_info", "False")
+                .lower()
+                == "true"
+            )
 
-    #                 # Tạo một phiên bản mới của soup để chỉnh sửa
-    #                 new_soup = BeautifulSoup(html_content, "html.parser")
-    #                 new_img_tags = new_soup.find_all("img")
+            if include_debug:
+                export_data["debug_info"] = {
+                    "has_main_image": bool(self.image),
+                    "main_image_type": str(type(self.image)) if self.image else None,
+                    "has_img_tags": len(img_tags) if "img_tags" in locals() else 0,
+                    "cloudinary_config": {
+                        "cloud_name": self.env["ir.config_parameter"]
+                        .sudo()
+                        .get_param("blogcreator.cloudinary_cloud_name", "Not set"),
+                        "has_api_key": bool(
+                            self.env["ir.config_parameter"]
+                            .sudo()
+                            .get_param("blogcreator.cloudinary_api_key")
+                        ),
+                    },
+                    "exceptions": debug_exceptions,
+                }
 
-    #                 for i, img_tag in enumerate(img_tags):
-    #                     src = img_tag.get("src", "")
-    #                     if not src:
-    #                         _logger.warning(f"Image {i+1} has empty src attribute")
-    #                         continue
+            # Gửi dữ liệu tới n8n qua webhook
+            response = requests.post(
+                webhook_url,
+                json=export_data,
+                headers={"Content-Type": "application/json"},
+                timeout=40,
+            )
 
-    #                     _logger.info(f"Processing image {i+1} with src: {src}")
-    #                     img_alt = img_tag.get("alt", f"Image {i+1}")
+            self.env["blogcreator.n8n.response"].create(
+                {
+                    "note_id": self.id,
+                    "response_time": fields.Datetime.now(),
+                    "status_code": response.status_code,
+                    "response_content": response.text,
+                }
+            )
 
-    #                     try:
-    #                         # Sinh một public_id duy nhất cho mỗi hình ảnh
-    #                         image_public_id = f"blog_{self.id}_content_image_{i+1}"
+            # Kiểm tra phản hồi
+            if response.status_code in (200, 201):
+                try:
+                    import json
 
-    #                         # Upload hình ảnh lên Cloudinary
-    #                         response = cloudinary_utils.upload_to_cloudinary(
-    #                             src,  # Truyền URL trực tiếp, phương thức đã được sửa để xử lý URL Odoo
-    #                             public_id=image_public_id,
-    #                             folder="blog_creator/content_images",
-    #                             is_thumbnail=(i == 0),  # Hình đầu tiên sẽ là thumbnail
-    #                         )
+                    response_data = json.loads(response.text)
+                    if "final_content" in response_data:
+                        final_content = response_data["final_content"]
+                        formatted_html = self._format_ai_content(final_content, cloudinary_images)
+                        self.write({
+                            "n8n_content": formatted_html
+                        })
+                        _logger.info("Đã lưu nội dung từ response n8n")
+                except Exception as e:
+                    _logger.error(f"Lỗi khi xử lý nội dung từ n8n: {str(e)}")
+                    return self._show_error_notification(str(e))
 
-    #                         # Lấy secure URL từ Cloudinary
-    #                         cloudinary_url = response.get("secure_url")
-    #                         _logger.info(f"Cloudinary URL: {cloudinary_url}")
+                self.message_post(body="Đã tạo nội dung AI thành công")
 
-    #                         # Lưu URL đầu tiên làm thumbnail
-    #                         if i == 0 and cloudinary_url:
-    #                             thumbnail_url = cloudinary_url
-    #                             _logger.info(f"Set thumbnail URL: {thumbnail_url}")
+                return {
+                    "type": "ir.actions.client",
+                    "tag": "display_notification",
+                    "params": {
+                        "title": "Thành công",
+                        "message": "Nội dung AI đã được tạo và hiển thị trong tab Nội dung.",
+                        "type": "success",
+                        "sticky": False,
+                    },
+                }
+            else:
+                raise Exception(
+                    f"Lỗi khi gửi đến n8n: Mã phản hồi {response.status_code}, Nội dung: {response.text}"
+                )
 
-    #                         # Lưu thông tin hình ảnh để gửi đến n8n
-    #                         cloudinary_images.append(
-    #                             {
-    #                                 "url": cloudinary_url,
-    #                                 "key": img_alt,
-    #                                 "id": i + 1,
-    #                             }
-    #                         )
+        except Exception as e:
+            error_msg = str(e)
+            _logger.error(f"Error in create_ai_content: {error_msg}")
+            _logger.exception("Exception details:")
+            self.message_post(
+                body=f"<p style='color:red'>Lỗi khi tạo nội dung AI: {error_msg}</p>"
+            )
+            return self._show_error_notification(error_msg)
+        
+    def _format_ai_content(self, content, cloudinary_images=None):
+        """Định dạng nội dung AI và chỉ thêm các class CSS"""
+        try:
+            import markdown
+            
+            # Loại bỏ dòng ```markdown và ``` từ nội dung
+            lines = content.splitlines()
+            filtered_lines = [line for line in lines if not line.strip().startswith("```")]
+            cleaned_content = "\n".join(filtered_lines)
+            
+            # Chuyển đổi Markdown thành HTML với một số extension
+            html_content = markdown.markdown(
+                cleaned_content, 
+                extensions=['extra', 'nl2br', 'tables', 'sane_lists']
+            )
+            
+            # Thay thế placeholder hình ảnh nếu có
+            if cloudinary_images:
+                for img in cloudinary_images:
+                    img_key = img.get("key", "")
+                    img_url = img.get("url", "")
+                    if img_key and img_url:
+                        img_placeholder = f"({img_key})"
+                        img_html = f'<figure class="ai-figure">'
+                        img_html += f'<img src="{img_url}" alt="{img_key}" class="ai-image">'
+                        img_html += f'<figcaption class="ai-caption">{img_key}</figcaption>'
+                        img_html += '</figure>'
+                        html_content = html_content.replace(img_placeholder, img_html)
+            
+            # Bọc trong div với class ai-content
+            formatted_html = f'<div class="ai-content">{html_content}</div>'
+            
+            return formatted_html
+        except Exception as e:
+            _logger.error(f"Lỗi khi định dạng nội dung AI: {str(e)}")
+            return f"<div class='alert alert-warning'>Không thể định dạng nội dung: {str(e)}</div>{content}"
+        
+    def submit_blog_post(self):
+        """Nộp bài viết để xét duyệt"""
+        self.ensure_one()
 
-    #                         new_img_tags[i]["src"] = cloudinary_url
-    #                         new_img_tags[i]["data-image-id"] = str(i + 1)
+        if self.state != "draft":
+            raise UserError(_("Chỉ có thể nộp bài viết ở trạng thái nháp!"))
 
-    #                         # Cập nhật src trong HTML mới
-    #                         new_img_tags[i]["src"] = cloudinary_url
-    #                         _logger.info(
-    #                             f"Updated image {i+1} with Cloudinary URL: {cloudinary_url}"
-    #                         )
+        if not self.title or not self.content:
+            raise UserError(
+                _("Vui lòng điền đầy đủ tiêu đề và nội dung trước khi nộp bài!")
+            )
 
-    #                     except Exception as e:
-    #                         error_msg = str(e)
-    #                         _logger.error(f"Error processing image {i+1}: {error_msg}")
-    #                         _logger.exception("Exception details:")
-    #                         debug_exceptions.append(
-    #                             {
-    #                                 "location": f"content_image_{i+1}",
-    #                                 "src": src,
-    #                                 "error": error_msg,
-    #                                 "traceback": traceback.format_exc(),
-    #                             }
-    #                         )
-    #                         # Giữ nguyên URL cũ nếu có lỗi
-    #                         cloudinary_images.append(
-    #                             {
-    #                                 "url": src,
-    #                                 "key": img_alt,
-    #                                 "error": str(e),
-    #                             }
-    #                         )
+        self.write(
+            {
+                "state": "submitted",
+                "exported_to_n8n": False,  # Không đánh dấu là đã xuất sang n8n
+            }
+        )
 
-    #                 # Cập nhật nội dung HTML với các URL Cloudinary mới
-    #                 _logger.info("HTML content updated with Cloudinary URLs")
+        self.message_post(body="Đã nộp bài viết để xét duyệt")
 
-    #             except Exception as e:
-    #                 error_msg = str(e)
-    #                 _logger.error(f"Error processing HTML content: {error_msg}")
-    #                 _logger.exception("Exception details:")
-    #                 debug_exceptions.append(
-    #                     {
-    #                         "location": "html_content",
-    #                         "error": error_msg,
-    #                         "traceback": traceback.format_exc(),
-    #                     }
-    #                 )
-    #         else:
-    #             _logger.info("No HTML content to process")
-    #             plain_text_content = ""
-
-    #         # Xử lý hình ảnh từ image_ids nếu có
-    #         # image_ids_details = []
-    #         # if hasattr(self, "image_ids") and self.image_ids:
-    #         #     _logger.info(f"Found {len(self.image_ids)} images in image_ids")
-    #         #     for idx, img_record in enumerate(self.image_ids):
-    #         #         # Thêm debug info cho từng record
-    #         #         record_info = {
-    #         #             "index": idx,
-    #         #             "has_image_attr": hasattr(img_record, "image"),
-    #         #             "image_value_exists": (
-    #         #                 bool(img_record.image)
-    #         #                 if hasattr(img_record, "image")
-    #         #                 else False
-    #         #             ),
-    #         #             "record_id": (
-    #         #                 img_record.id if hasattr(img_record, "id") else None
-    #         #             ),
-    #         #             "record_name": (
-    #         #                 img_record.name if hasattr(img_record, "name") else None
-    #         #             ),
-    #         #             "is_thumbnail": (
-    #         #                 img_record.is_thumbnail
-    #         #                 if hasattr(img_record, "is_thumbnail")
-    #         #                 else False
-    #         #             ),
-    #         #         }
-    #         #         image_ids_details.append(record_info)
-
-    #         #         if hasattr(img_record, "image") and img_record.image:
-    #         #             try:
-    #         #                 _logger.info(f"Processing gallery image {idx+1}")
-    #         #                 _logger.info(f"Image type: {type(img_record.image)}")
-    #         #                 # Chuyển đổi dữ liệu hình ảnh sang định dạng phù hợp
-    #         #                 image_data = img_record.image
-
-    #         #                 # Tải lên Cloudinary
-    #         #                 image_public_id = f"blog_{self.id}_gallery_image_{idx+1}"
-
-    #         #                 # Sử dụng class mới
-    #         #                 is_thumbnail = (
-    #         #                     hasattr(img_record, "is_thumbnail")
-    #         #                     and img_record.is_thumbnail
-    #         #                 )
-    #         #                 response = cloudinary_utils.upload_to_cloudinary(
-    #         #                     image_data,
-    #         #                     public_id=image_public_id,
-    #         #                     folder="blog_creator/gallery_images",
-    #         #                     is_thumbnail=is_thumbnail,
-    #         #                 )
-
-    #         #                 # Thêm vào danh sách hình ảnh
-    #         #                 cloudinary_images.append(
-    #         #                     {
-    #         #                         "url": response.get("secure_url"),
-    #         #                         "alt": (
-    #         #                             img_record.name
-    #         #                             if hasattr(img_record, "name")
-    #         #                             else f"Gallery image {idx+1}"
-    #         #                         ),
-    #         #                         "description": (
-    #         #                             img_record.description
-    #         #                             if hasattr(img_record, "description")
-    #         #                             and img_record.description
-    #         #                             else ""
-    #         #                         ),
-    #         #                         "width": response.get("width"),
-    #         #                         "height": response.get("height"),
-    #         #                         "is_gallery": True,
-    #         #                         "is_thumbnail": is_thumbnail,
-    #         #                         "sequence": img_record.sequence,
-    #         #                     }
-    #         #                 )
-
-    #         #                 # Cập nhật URL trên record
-    #         #                 img_record.image_url = response.get("secure_url")
-    #         #                 _logger.info(f"Gallery image {idx+1} uploaded successfully")
-
-    #         #             except Exception as e:
-    #         #                 error_msg = str(e)
-    #         #                 _logger.error(
-    #         #                     f"Error uploading gallery image {idx+1}: {error_msg}"
-    #         #                 )
-    #         #                 _logger.exception("Exception details:")
-    #         #                 debug_exceptions.append(
-    #         #                     {
-    #         #                         "location": f"gallery_image_{idx+1}",
-    #         #                         "error": error_msg,
-    #         #                         "traceback": traceback.format_exc(),
-    #         #                     }
-    #         #                 )
-    #         # else:
-    #         #     _logger.info("No gallery images found")
-
-    #         # content_images = []
-    #         # for img in cloudinary_images:
-    #         #     content_images.append(
-    #         #         {
-    #         #             "url": img.get("url"),
-    #         #             "caption": img.get("description", ""),
-    #         #             "key": img.get("alt"),
-    #         #         }
-    #         #     )
-
-    #         # thumbnail_url = self._get_thumbnail_url()
-
-    #         # if thumbnail_url and content_images:
-    #         #     # Tìm hình ảnh có URL trùng với thumbnail_url
-    #         #     thumbnail_image = next(
-    #         #         (img for img in content_images if img.get("url") == thumbnail_url),
-    #         #         None,
-    #         #     )
-    #         #     if thumbnail_image:
-    #         #         # Loại bỏ thumbnail khỏi content_images
-    #         #         content_images.remove(thumbnail_image)
-    #         #         _logger.info(
-    #         #             f"Removed thumbnail from content_images: {thumbnail_image['url']}"
-    #         #         )
-
-    #         # Chuẩn bị dữ liệu để xuất
-    #         export_data = {
-    #             "id": self.id,
-    #             "title": self.title,
-    #             "content": plain_text_content,
-    #             "note_type": dict(self._fields["note_type"].selection).get(
-    #                 self.note_type
-    #             ),
-    #             "tags": self.tags,
-    #             "is_published": self.is_published,
-    #             "create_date": fields.Datetime.to_string(self.create_date),
-    #             "user": self.env.user.name,
-    #             "thumbnail": thumbnail_url,
-    #             "content_images": cloudinary_images,
-    #         }
-
-    #         include_debug = (
-    #             self.env["ir.config_parameter"]
-    #             .sudo()
-    #             .get_param("blogcreator.include_debug_info", "True")
-    #             .lower()
-    #             == "true"
-    #         )
-
-    #         if include_debug:
-    #             export_data["debug_info"] = {
-    #                 "has_main_image": bool(self.image),
-    #                 "main_image_type": str(type(self.image)) if self.image else None,
-    #                 "has_img_tags": (
-    #                     len(soup.find_all("img"))
-    #                     if "soup" in locals() and html_content
-    #                     else 0
-    #                 ),
-    #                 "cloudinary_config": {
-    #                     "cloud_name": self.env["ir.config_parameter"]
-    #                     .sudo()
-    #                     .get_param("blogcreator.cloudinary_cloud_name", "Not set"),
-    #                     "has_api_key": bool(
-    #                         self.env["ir.config_parameter"]
-    #                         .sudo()
-    #                         .get_param("blogcreator.cloudinary_api_key")
-    #                     ),
-    #                 },
-    #                 "exceptions": debug_exceptions,
-    #             }
-
-    #         # Gửi dữ liệu tới n8n qua webhook
-    #         response = requests.post(
-    #             webhook_url,
-    #             json=export_data,
-    #             headers={"Content-Type": "application/json"},
-    #             timeout=40,
-    #         )
-
-    #         self.env["blogcreator.n8n.response"].create(
-    #             {
-    #                 "note_id": self.id,
-    #                 "response_time": fields.Datetime.now(),
-    #                 "status_code": response.status_code,
-    #                 "response_content": response.text,
-    #             }
-    #         )
-
-    #         # Kiểm tra phản hồi
-    #         if response.status_code in (200, 201):
-    #             # Nếu thành công, đánh dấu là đã xuất
-    #             self.write(
-    #                 {
-    #                     "exported_to_n8n": True,
-    #                     "export_date": fields.Datetime.now(),
-    #                     "state": "exported",
-    #                 }
-    #             )
-
-    #             self.message_post(body="Đã tạo bài viết thành công")
-
-    #             return {
-    #                 "type": "ir.actions.act_window",
-    #                 "res_model": "blogcreator.note",
-    #                 "res_id": self.id,
-    #                 "view_mode": "form",
-    #                 "target": "current",
-    #                 "context": {"form_view_ref": "blogcreator.view_blogpost_form"},
-    #                 "tag": "display_notification",
-    #                 "params": {
-    #                     "title": "Thành công",
-    #                     "message": f'Bài viết "{self.title}" đã được tạo.',
-    #                     "type": "success",
-    #                     "sticky": False,
-    #                 },
-    #             }
-    #         else:
-    #             raise Exception(
-    #                 f"Lỗi khi gửi đến n8n: Mã phản hồi {response.status_code}, Nội dung: {response.text}"
-    #             )
-
-    #     except Exception as e:
-    #         error_msg = str(e)
-    #         _logger.error(f"Error in export_to_n8n: {error_msg}")
-    #         _logger.exception("Exception details:")
-    #         self.message_post(
-    #             body=f"<p style='color:red'>Lỗi khi xuất sang n8n: {error_msg}</p>"
-    #         )
-    #         return self._show_error_notification(error_msg)
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Thành công",
+                "message": "Bài viết đã được nộp để xét duyệt.",
+                "type": "success",
+                "sticky": False,
+            },
+        }
 
     def export_to_n8n(self):
         """Hàm chuẩn bị và xuất dữ liệu sang n8n"""
@@ -767,11 +601,23 @@ class BlogNote(models.Model):
             # Kiểm tra phản hồi
             if response.status_code in (200, 201):
                 # Nếu thành công, đánh dấu là đã xuất
+
+                try:
+                    import json
+
+                    response_data = json.loads(response.text)
+                    if "final_content" in response_data:
+                        # Lưu nội dung AI vào trường n8n_content
+                        self.n8n_content = response_data["final_content"]
+                        _logger.info(f"Đã lưu nội dung từ response n8n")
+                except Exception as e:
+                    _logger.error(f"Lỗi khi xử lý nội dung từ n8n: {str(e)}")
+
                 self.write(
                     {
                         "exported_to_n8n": True,
                         "export_date": fields.Datetime.now(),
-                        "state": "exported",
+                        "state": "submitted",
                     }
                 )
 
@@ -838,12 +684,103 @@ class BlogNote(models.Model):
         if not self.env.user.has_group("blogcreator.group_blogcreator_manager"):
             raise UserError(_("Chỉ giáo viên mới có quyền duyệt bài viết!"))
 
-        if self.state != "exported":
-            raise UserError("Chỉ có thể xuất bản bài viết đã được duyệt!")
+        if self.state != "submitted":
+            raise UserError("Chỉ có thể duyệt bài viết đã được gửi!")
 
-        self.write({"is_published": True, "state": "approved"})
+        self.write(
+            {
+                "state": "approved",
+                "is_published": False,
+            }
+        )
 
-        self.message_post(body="Đã xuất bản bài viết")
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "blogcreator.note",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
+    def action_publish(self):
+        self.ensure_one()
+
+        if not self.env.user.has_group("blogcreator.group_blogcreator_manager"):
+            raise UserError(_("Chỉ giáo viên mới có quyền đăng bài viết!"))
+
+        if self.state != "approved":
+            raise UserError("Chỉ có thể đăng bài viết đã được duyệt!")
+
+        self.write(
+            {
+                "state": "published",
+                "is_published": True,
+            }
+        )
+
+        self.message_post(body="Đã đăng bài viết")
+
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "blogcreator.note",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
+    def action_reject(self):
+        self.ensure_one()
+
+        if not self.env.user.has_group("blogcreator.group_blogcreator_manager"):
+            raise UserError(_("Chỉ giáo viên mới có quyền từ chối bài viết!"))
+
+        if self.state != "submitted":
+            raise UserError("Chỉ có thể từ chối bài viết đã được gửi!")
+
+        self.write(
+            {
+                "state": "rejected",
+                "is_published": False,
+            }
+        )
+
+        self.message_post(
+            body="Bài viết bị từ chối. Vui lòng xem xét và chỉnh sửa lại."
+        )
+
+        return {
+            "type": "ir.actions.act_window",
+            "res_model": "blogcreator.note",
+            "res_id": self.id,
+            "view_mode": "form",
+            "target": "current",
+        }
+
+    def action_cancel(self):
+        self.ensure_one()
+
+        # Kiểm tra quyền - chỉ admin và người có quyền quản lý mới được hủy bài khi đã đăng/duyệt
+        if self.state in ["approved", "published"] and not self.env.user.has_group("blogcreator.group_blogcreator_manager"):
+            raise UserError(_("Chỉ giáo viên mới có quyền hủy bài viết đã duyệt hoặc đã đăng!"))
+
+        # Người tạo và quản lý đều có thể hủy ở trạng thái soạn thảo, gửi, từ chối
+        # Chỉ quản lý mới có thể hủy ở trạng thái đã duyệt, đã đăng
+        if self.state == "cancelled":
+            raise UserError("Bài viết đã ở trạng thái hủy!")
+        
+        # Ghi log tùy theo trạng thái trước khi hủy
+        message = "Bài viết đã bị hủy"
+        if self.state == "published":
+            message = "Bài viết đã bị hủy (trước đó ở trạng thái đã đăng)"
+        elif self.state == "approved":
+            message = "Bài viết đã bị hủy (trước đó ở trạng thái đã duyệt)"
+
+        self.write({
+            "state": "cancelled",
+            "is_published": False,
+        })
+
+        self.message_post(body=message)
 
         return {
             "type": "ir.actions.act_window",
@@ -856,7 +793,7 @@ class BlogNote(models.Model):
     def action_recreate_post(self):
         self.ensure_one()
 
-        if self.state not in ["exported", "approved"]:
+        if self.state not in ["submitted", "approved"]:
             raise UserError("Chỉ có thể tạo lại bài viết đã được tạo hoặc đã xuất bản!")
 
         self.write(
@@ -881,7 +818,7 @@ class BlogNote(models.Model):
         if self.state != "approved":
             raise UserError("Chỉ có thể hủy xuất bản bài viết đã được xuất bản!")
 
-        self.write({"is_published": False, "state": "exported"})
+        self.write({"is_published": False, "state": "submitted"})
 
         self.message_post(body="Đã hủy xuất bản bài viết")
 

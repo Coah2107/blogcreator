@@ -87,7 +87,9 @@ class N8nResponse(models.Model):
 
                     # Loại bỏ dòng '```markdown' và '```' khỏi nội dung
                     lines = final_content.splitlines()
-                    filtered_lines = [line for line in lines if not line.strip().startswith("```")]
+                    filtered_lines = [
+                        line for line in lines if not line.strip().startswith("```")
+                    ]
                     cleaned_content = "\n".join(filtered_lines)
 
                     # Chuyển đổi Markdown đã làm sạch sang HTML
@@ -95,7 +97,9 @@ class N8nResponse(models.Model):
 
                     # Gán HTML đã chuyển đổi vào formatted_response
                     record.formatted_response = html_content
-                    _logger.info(f"Image data type: {html_content}")
+
+                    if record.note_id:
+                        record.note_id.n8n_content = html_content
                 else:
                     # Nếu không có 'final_content', hiển thị toàn bộ JSON như trước
                     html = "<dl class='row'>"

@@ -7,20 +7,17 @@
     <field name="arch" type="xml">
       <form string="Blog Post">
         <header>
-          <field name="state" widget="statusbar" statusbar_visible="draft,exported,approved"/>
+          <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved,published"/>
 
-          <!-- Button 1: DRAFT state - Hiển thị "Tạo bài viết" -->
-          <button name="export_to_n8n" string="Tạo bài viết" type="object" class="oe_highlight" attrs="{'invisible': [('state', '!=', 'draft')]}" help="Tạo bài viết qua n8n"/>
-
-          <!-- Button 2: EXPORTED state - Hiển thị "Xuất bản" và "Tạo lại" -->
-          <button name="action_approve" string="Phê duyệt" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Xuất bản bài viết" groups="blogcreator.group_blogcreator_manager"/>
-
-          <button name="action_recreate_post" string="Tạo lại bài viết" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'exported')]}" help="Tạo lại bài viết qua n8n"/>
-
-          <!-- Button 3: APPROVED state - Hiển thị "Hủy xuất bản" và "Tạo lại" -->
-          <button name="action_unapprove" string="Hủy xuất bản" type="object" class="btn-secondary" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Hủy xuất bản bài viết"/>
-
-          <button name="action_recreate_post" string="Tạo lại bài viết" type="object" class="btn-warning" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Tạo lại bài viết qua n8n"/>
+          <button name="submit_blog_post" string="Gửi bài" type="object" class="oe_highlight" attrs="{'invisible': [('state', 'not in', ['draft', 'rejected'])]}" help="Gửi bài để giáo viên xét duyệt"/>
+          <!-- Nút Duyệt bài - hiển thị ở trạng thái đã gửi (chỉ giáo viên) -->
+          <button name="action_approve" string="Duyệt bài" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'submitted')]}" help="Duyệt bài viết này" groups="blogcreator.group_blogcreator_manager"/>
+          <!-- Nút Từ chối - hiển thị ở trạng thái đã gửi (chỉ giáo viên) -->
+          <button name="action_reject" string="Từ chối" type="object" class="btn-danger" attrs="{'invisible': [('state', '!=', 'submitted')]}" help="Từ chối bài viết này" groups="blogcreator.group_blogcreator_manager"/>
+          <!-- Nút Đăng bài - hiển thị ở trạng thái đã duyệt (chỉ giáo viên) -->
+          <button name="action_publish" string="Đăng bài" type="object" class="btn-success" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Đăng bài viết này" groups="blogcreator.group_blogcreator_manager"/>
+          <!-- Nút Hủy bài - hiển thị ở trạng thái nháp hoặc bị từ chối -->
+          <button name="action_cancel" string="Hủy bài" type="object" class="btn-secondary" attrs="{'invisible': [('state', 'not in', ['draft', 'rejected'])]}" help="Hủy bài viết này"/>
         </header>
         <sheet>
           <div class="oe_title">
@@ -36,54 +33,19 @@
               <field name="user_id"/>
             </group>
             <group>
-              <field name="is_published"/>
-              <field name="exported_to_n8n"/>
+              <field name="is_published" invisible="1"/>
+              <field name="exported_to_n8n" invisible="1"/>
               <field name="export_date" attrs="{'invisible': [('exported_to_n8n', '=', False)]}"/>
             </group>
           </group>
           <notebook>
             <page string="Nội dung">
-              <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 400}"/>
+              <field name="n8n_content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 400}"/>
             </page>
-            <!-- <page string="Hình ảnh">
-              <div class="mb-3">
-                <button name="action_add_image" string="Thêm hình ảnh" type="object" class="btn btn-primary"/>
-              </div>
-              <field name="image_ids" mode="kanban" options="{'create': false}" context="{'default_note_id': id}">
-                <kanban>
-                  <field name="id"/>
-                  <field name="image"/>
-                  <field name="name" readonly="1"/>
-                  <field name="description"/>
-                  <field name="is_thumbnail"/>
-                  <templates>
-                    <t t-name="kanban-box">
-                      <div class="bc_kanban_card">
-                        <div t-if="record.is_thumbnail.raw_value" class="ribbon ribbon-top-right">
-                          <span class="bg-success">Thumbnail</span>
-                        </div>
-                        <img t-att-src="kanban_image('blogcreator.image', 'image', record.id.raw_value)" class="bc_kanban_img" alt="Image Preview"/>
-                        <div class="bc_kanban_title">
-                          <t t-esc="record.name.value"/>
-                        </div>
-                        <div class="bc_kanban_desc">
-                          <t t-esc="record.description.value"/>
-                        </div>
-                        <div class="bc_kanban_actions">
-                          <a type="edit" class="btn btn-md btn-primary" title="Sửa" role="button">
-                            <i class="fa fa-pencil"/>
-                          </a>
-                          <a type="delete" class="btn btn-md btn-danger" title="Xóa" role="button">
-                            <i class="fa fa-trash"/>
-                          </a>
-                        </div>
-                      </div>
-                    </t>
-                  </templates>
-                </kanban>
-              </field>
-            </page> -->
-            <!--  -->
+            <page string="AI Tool">
+              <field name="content" widget="html" options="{'collaborative': true, 'resizable': true, 'height': 400}"/>
+              <button name="create_ai_content" string="Tạo bài viết" type="object" class="btn-primary"/>
+            </page>
             <page string="Lịch sử tạo bài" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
               <field name="last_n8n_response_id" invisible="1"/>
               <field name="last_n8n_status" invisible="1"/>
@@ -105,7 +67,6 @@
               <field name="n8n_response_ids" readonly="1">
                 <tree decoration-success="success" decoration-danger="not success">
                   <field name="response_id"/>
-                  <!-- <field name="status_code"/> -->
                   <field name="success"/>
                   <field name="response_time"/>
                   <button name="retry_export" string="Thử lại" type="object" attrs="{'invisible': [('success', '=', True)]}" icon="fa-refresh"/>
@@ -128,7 +89,7 @@
     <field name="name">blogcreator.note.tree</field>
     <field name="model">blogcreator.note</field>
     <field name="arch" type="xml">
-      <tree string="Blog Posts" decoration-info="state=='draft'" decoration-success="state=='approved'" decoration-muted="state=='exported'">
+      <tree string="Blog Posts" decoration-info="state=='draft'" decoration-warning="state=='submitted'" decoration-success="state=='published'" decoration-muted="state=='cancelled'" decoration-danger="state=='rejected'">
         <field name="title"/>
         <field name="note_type"/>
         <field name="tags"/>
@@ -138,26 +99,6 @@
       </tree>
     </field>
   </record>
-
-  <!-- <record id="view_blogimage_form" model="ir.ui.view">
-    <field name="name">blogcreator.image.form</field>
-    <field name="model">blogcreator.image</field>
-    <field name="arch" type="xml">
-      <form string="Blog Image">
-        <sheet>
-          <group>
-            <field name="name"/>
-            <field name="note_id" readonly="1"/>
-            <field name="sequence" readonly="1"/>
-            <field name="is_thumbnail" widget="boolean"/>
-            <field name="image" widget="image"/>
-            <field name="image_url" invisible="1"/>
-            <field name="description"/>
-          </group>
-        </sheet>
-      </form>
-    </field>
-  </record> -->
 
   <!-- Search View -->
   <record id="view_blogpost_search" model="ir.ui.view">
@@ -170,8 +111,11 @@
         <field name="tags"/>
         <field name="user_id"/>
         <filter string="Nháp" name="draft" domain="[('state', '=', 'draft')]"/>
-        <filter string="Đã xuất bản" name="approved" domain="[('state', '=', 'approved')]"/>
-        <filter string="Bài viết đã được tạo" name="exported" domain="[('state', '=', 'exported')]"/>
+        <filter string="Đã gửi" name="submitted" domain="[('state', '=', 'submitted')]"/>
+        <filter string="Đã duyệt" name="approved" domain="[('state', '=', 'approved')]"/>
+        <filter string="Đã đăng" name="published" domain="[('state', '=', 'published')]"/>
+        <filter string="Bị từ chối" name="rejected" domain="[('state', '=', 'rejected')]"/>
+        <filter string="Đã hủy" name="cancelled" domain="[('state', '=', 'cancelled')]"/>
         <filter string="Bài của tôi" name="my_posts" domain="[('user_id', '=', uid)]"/>
         <group expand="0" string="Group By">
           <filter string="Loại ghi chú" name="group_type" context="{'group_by': 'note_type'}"/>

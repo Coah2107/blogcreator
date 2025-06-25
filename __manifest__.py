@@ -31,6 +31,7 @@
         "web.assets_backend": [
             "blogcreator/static/src/js/wysiwyg_extend.js",
             "blogcreator/static/src/css/image_kanban_custom.css",
+            "blogcreator/static/src/css/ai_content.css",
         ],
     },
 }

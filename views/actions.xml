@@ -6,7 +6,7 @@
         <field name="res_model">blogcreator.note</field>
         <field name="view_mode">tree,form</field>
         <field name="target">current</field>
-        <field name="context">{'search_default_my_posts': 1}</field>
+        <field name="context"></field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Tạo bài viết blog đầu tiên của bạn
@@ -40,7 +40,7 @@
         <field name="res_model">blogcreator.note</field>
         <field name="view_mode">tree,form</field>
         <field name="target">current</field>
-        <field name="domain">[('state', '=', 'exported'), ('is_published', '=', False)]</field>
+        <field name="domain">[('state', '=', 'submitted'), ('is_published', '=', False)]</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
         Không có bài viết nào đang chờ duyệt
