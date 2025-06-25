@@ -48,8 +48,14 @@ class ResConfigSettings(models.TransientModel):
     )
 
     python_version = fields.Char(
-        string="Python Version", default=platform.python_version()
+        string="Python Version", compute="_compute_python_version"
     )
+
+    @api.depends_context("uid")
+    def _compute_python_version(self):
+        version = platform.python_version()
+        for rec in self:
+            rec.python_version = version
 
     def test_cloudinary_connection(self):
         """Test the Cloudinary connection"""
