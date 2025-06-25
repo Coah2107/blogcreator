@@ -91,7 +91,7 @@
     </record>
 
     <!-- Action -->
-    <record id="action_n8n_response" model="ir.actions.act_window">
+    <!-- <record id="action_n8n_response" model="ir.actions.act_window">
         <field name="name">Lịch sử tạo bài</field>
         <field name="res_model">blogcreator.n8n.response</field>
         <field name="view_mode">tree,form</field>
@@ -104,7 +104,7 @@
             Màn hình này hiển thị lịch sử các lần gửi bài viết của bạn.
             </p>
         </field>
-    </record>
+    </record> -->
 
     <!-- Graph View -->
     <record id="view_n8n_response_graph" model="ir.ui.view">

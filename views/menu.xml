@@ -7,7 +7,7 @@
 
     <menuitem id="menu_blogcreator_waiting_approval" name="Bài đang chờ duyệt" parent="menu_blogcreator_root" action="waiting_approval_blogpost" sequence="10" groups="blogcreator.group_blogcreator_manager"/>
 
-    <menuitem id="menu_blogcreator_posts" name="Blog Posts" parent="menu_blogcreator_root" action="action_blogpost" sequence="20" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
+    <menuitem id="menu_blogcreator_posts" name="Danh sách bài viết" parent="menu_blogcreator_root" action="action_blogpost" sequence="20" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
     <menuitem id="menu_blogcreator_exported_posts" name="Bài đã được duyệt" parent="menu_blogcreator_root" action="exported_blogpost" sequence="40" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
-    <menuitem id="menu_n8n_response" name="Lịch sử tạo bài" parent="menu_blogcreator_root" action="action_n8n_response" sequence="30" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/>
+    <!-- <menuitem id="menu_n8n_response" name="Lịch sử tạo bài" parent="menu_blogcreator_root" action="action_n8n_response" sequence="30" groups="blogcreator.group_blogcreator_reader,blogcreator.group_blogcreator_author,blogcreator.group_blogcreator_manager"/> -->
 </odoo>
