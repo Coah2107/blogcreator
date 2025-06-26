@@ -101,6 +101,68 @@ class CloudinaryUtils(models.AbstractModel):
 
             if image_data is None:
                 raise ValueError("Image data is None")
+            
+            if isinstance(image_data, str) and (image_data.startswith("/web/image/") or 
+                                          image_data.startswith("http://localhost") or 
+                                          image_data.startswith("https://localhost")):
+                _logger.info(f"Detected internal Odoo URL: {image_data}")
+                
+                # Trích xuất ID attachment từ URL
+                attachment_id = None
+                if "/web/image/" in image_data:
+                    parts = image_data.split("/")
+                    for idx, part in enumerate(parts):
+                        if part == "image" and idx < len(parts) - 1:
+                            try:
+                                # Format URL là /web/image/248-c52740f3/rung4.jpg
+                                attachment_id = int(parts[idx + 1].split("-")[0])
+                                _logger.info(f"Extracted attachment ID: {attachment_id}")
+                                break
+                            except (ValueError, IndexError):
+                                _logger.warning(f"Could not extract ID from {parts[idx + 1]}")
+                
+                # Nếu tìm thấy ID attachment, lấy dữ liệu trực tiếp
+                if attachment_id:
+                    attachment = self.env['ir.attachment'].sudo().browse(attachment_id)
+                    if attachment.exists():
+                        _logger.info(f"Found attachment: {attachment.name}")
+                        # Lấy dữ liệu binary từ attachment
+                        binary_data = base64.b64decode(attachment.datas)
+                        # Upload binary data lên Cloudinary
+                        response = cloudinary.uploader.upload(BytesIO(binary_data), **upload_options)
+                        _logger.info(f"Successfully uploaded attachment to Cloudinary")
+                        return response
+                    else:
+                        _logger.warning(f"Attachment ID {attachment_id} not found")
+                else:
+                    _logger.warning("Could not extract attachment ID from URL")
+                    
+                # Nếu không tìm được attachment, thử tải URL với requests
+                try:
+                    import requests
+                    _logger.info("Trying to download image using requests")
+                    
+                    # Thêm tiền tố domain nếu cần
+                    if image_data.startswith("/"):
+                        base_url = self.env["ir.config_parameter"].sudo().get_param("web.base.url", "http://localhost:8069")
+                        full_url = f"{base_url}{image_data}"
+                    else:
+                        full_url = image_data
+                    
+                    _logger.info(f"Downloading from URL: {full_url}")
+                    response = requests.get(full_url, timeout=15)
+                    
+                    if response.status_code == 200:
+                        _logger.info(f"Successfully downloaded image, size: {len(response.content)} bytes")
+                        # Upload dữ liệu tải về lên Cloudinary
+                        result = cloudinary.uploader.upload(BytesIO(response.content), **upload_options)
+                        return result
+                    else:
+                        _logger.error(f"Failed to download: HTTP {response.status_code}")
+                        raise ValueError(f"Failed to download image: HTTP {response.status_code}")
+                except Exception as e:
+                    _logger.error(f"Download error: {str(e)}")
+                    raise ValueError(f"Failed to download image: {str(e)}")
 
             # Xử lý trường hợp đặc biệt của Odoo
             if (
@@ -244,6 +306,21 @@ class CloudinaryUtils(models.AbstractModel):
                             BytesIO(binary_data), **upload_options
                         )
                         return result
+                    
+                if isinstance(image_data, str) and ("/web/image/" in image_data or "localhost" in image_data):
+                    _logger.info("Last attempt: trying to get attachment through cache")
+                    # Lấy ID từ URL path
+                    import re
+                    match = re.search(r'/web/image/(\d+)', image_data)
+                    if match:
+                        attachment_id = int(match.group(1))
+                        attachment = self.env['ir.attachment'].sudo().browse(attachment_id)
+                        if attachment.exists():
+                            _logger.info(f"Found attachment in last attempt: {attachment.name}")
+                            binary_data = base64.b64decode(attachment.datas)
+                            result = cloudinary.uploader.upload(BytesIO(binary_data), **upload_options)
+                            return result
+                        
             except Exception as rescue_error:
                 _logger.error(f"Last resort attempt also failed: {str(rescue_error)}")
 

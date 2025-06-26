@@ -87,7 +87,9 @@ class N8nResponse(models.Model):
 
                     # Loại bỏ dòng '```markdown' và '```' khỏi nội dung
                     lines = final_content.splitlines()
-                    filtered_lines = [line for line in lines if not line.strip().startswith("```")]
+                    filtered_lines = [
+                        line for line in lines if not line.strip().startswith("```")
+                    ]
                     cleaned_content = "\n".join(filtered_lines)
 
                     # Chuyển đổi Markdown đã làm sạch sang HTML
@@ -95,7 +97,9 @@ class N8nResponse(models.Model):
 
                     # Gán HTML đã chuyển đổi vào formatted_response
                     record.formatted_response = html_content
-                    _logger.info(f"Image data type: {html_content}")
+
+                    if record.note_id:
+                        record.note_id.n8n_content = html_content
                 else:
                     # Nếu không có 'final_content', hiển thị toàn bộ JSON như trước
                     html = "<dl class='row'>"
@@ -112,11 +116,11 @@ class N8nResponse(models.Model):
                 # Nếu không phải JSON hoặc có lỗi xử lý
                 record.formatted_response = f"<pre>{record.response_content}</pre>"
 
-    def retry_export(self):
-        """Thử lại việc xuất blog post sang n8n"""
-        self.ensure_one()
-        return (
-            self.note_id.retry_export_to_n8n()
-            if hasattr(self.note_id, "retry_export_to_n8n")
-            else {"type": "ir.actions.act_window_close"}
-        )
+    # def retry_export(self):
+    #     """Thử lại việc xuất blog post sang n8n"""
+    #     self.ensure_one()
+    #     return (
+    #         self.note_id.retry_export_to_n8n()
+    #         if hasattr(self.note_id, "retry_export_to_n8n")
+    #         else {"type": "ir.actions.act_window_close"}
+    #     )

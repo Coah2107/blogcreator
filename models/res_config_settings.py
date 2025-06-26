@@ -3,6 +3,7 @@ from odoo import api, fields, models
 import logging
 import cloudinary
 import cloudinary.api
+import platform
 
 _logger = logging.getLogger(__name__)
 
@@ -39,6 +40,22 @@ class ResConfigSettings(models.TransientModel):
         default="id,title,content,cloudinary_content,note_type,tags,is_published,create_date,user,main_image,content_images",
         help="Comma-separated list of fields to include in the webhook payload",
     )
+
+    n8n_webhook_url = fields.Char(
+        string="n8n Webhook URL",
+        config_parameter="blogcreator.n8n_webhook_url",
+        help="Đường dẫn webhook của workflow n8n nhận dữ liệu bài viết từ Odoo",
+    )
+
+    python_version = fields.Char(
+        string="Python Version", compute="_compute_python_version"
+    )
+
+    @api.depends_context("uid")
+    def _compute_python_version(self):
+        version = platform.python_version()
+        for rec in self:
+            rec.python_version = version
 
     def test_cloudinary_connection(self):
         """Test the Cloudinary connection"""

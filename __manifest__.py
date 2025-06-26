@@ -18,10 +18,11 @@
     "data": [
         "security/blogcreator_security.xml",
         "security/ir.model.access.csv",
-        "views/views.xml",
         "views/n8n_response_views.xml",
-        "views/menu.xml",
         "views/res_config_settings_views.xml",
+        "views/actions.xml",
+        "views/menu.xml",
+        "views/views.xml",
         # "data/n8n_sequence.xml",
     ],
     "installable": True,
@@ -30,6 +31,7 @@
         "web.assets_backend": [
             "blogcreator/static/src/js/wysiwyg_extend.js",
             "blogcreator/static/src/css/image_kanban_custom.css",
+            "blogcreator/static/src/css/ai_content.css",
         ],
     },
 }

@@ -15,14 +15,14 @@
 
     <!-- Nhóm người viết -->
     <record id="group_blogcreator_author" model="res.groups">
-        <field name="name">Author</field>
+        <field name="name">Student</field>
         <field name="category_id" ref="module_category_blogcreator"/>
         <field name="implied_ids" eval="[(4, ref('group_blogcreator_reader'))]"/>
     </record>
 
     <!-- Nhóm quản lý -->
     <record id="group_blogcreator_manager" model="res.groups">
-        <field name="name">Manager</field>
+        <field name="name">Teacher</field>
         <field name="category_id" ref="module_category_blogcreator"/>
         <field name="implied_ids" eval="[(4, ref('group_blogcreator_author'))]"/>
         <field name="users" eval="[(4, ref('base.user_admin'))]"/>
@@ -30,7 +30,7 @@
 
     <!-- Quy tắc bảo mật - người tạo chỉ có thể chỉnh sửa bài của họ -->
     <record id="rule_blogcreator_author_own_posts" model="ir.rule">
-        <field name="name">Authors can only edit their own posts</field>
+        <field name="name">Students can only edit their own posts</field>
         <field name="model_id" ref="model_blogcreator_note"/>
         <field name="domain_force">[('user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('group_blogcreator_author'))]"/>
@@ -42,7 +42,7 @@
 
     <!-- Quy tắc bảo mật - manager có thể xem và chỉnh sửa tất cả -->
     <record id="rule_blogcreator_manager_all_posts" model="ir.rule">
-        <field name="name">Managers have full access to all posts</field>
+        <field name="name">Teachers have full access to all posts</field>
         <field name="model_id" ref="model_blogcreator_note"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="groups" eval="[(4, ref('group_blogcreator_manager'))]"/>
@@ -54,7 +54,7 @@
 
     <!-- security/blogcreator_security.xml (thêm vào) -->
     <record id="rule_blogcreator_author_own_responses" model="ir.rule">
-        <field name="name">Authors can see responses for their posts</field>
+        <field name="name">Students can see responses for their posts</field>
         <field name="model_id" ref="model_blogcreator_n8n_response"/>
         <field name="domain_force">[('note_id.user_id', '=', user.id)]</field>
         <field name="groups" eval="[(4, ref('group_blogcreator_author'))]"/>
@@ -65,7 +65,7 @@
     </record>
 
     <record id="rule_blogcreator_manager_all_responses" model="ir.rule">
-        <field name="name">Managers have full access to all responses</field>
+        <field name="name">Teachers have full access to all responses</field>
         <field name="model_id" ref="model_blogcreator_n8n_response"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="groups" eval="[(4, ref('group_blogcreator_manager'))]"/>
@@ -74,4 +74,27 @@
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="True"/>
     </record>
+
+    <!-- <record id="rule_blogcreator_author_own_images" model="ir.rule">
+        <field name="name">Students can only access their own images</field>
+        <field name="model_id" ref="model_blogcreator_image"/>
+        <field name="domain_force">['|', ('note_id.user_id', '=', user.id), ('note_id', '=', False)]</field>
+        <field name="groups" eval="[(4, ref('blogcreator.group_blogcreator_author'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record> -->
+
+    <!-- <record id="rule_blogcreator_manager_all_images" model="ir.rule">
+        <field name="name">Teacher have full access to all images</field>
+        <field name="model_id" ref="model_blogcreator_image"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="groups" eval="[(4, ref('blogcreator.group_blogcreator_manager'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="True"/>
+    </record> -->
+
 </odoo>
