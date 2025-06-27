@@ -8,15 +8,10 @@
       <form string="Blog Post">
         <header>
           <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved,published"/>
-
           <button name="submit_blog_post" string="Gửi bài" type="object" class="oe_highlight" attrs="{'invisible': [('state', 'not in', ['draft', 'rejected'])]}" help="Gửi bài để giáo viên xét duyệt"/>
-          <!-- Nút Duyệt bài - hiển thị ở trạng thái đã gửi (chỉ giáo viên) -->
           <button name="action_approve" string="Duyệt bài" type="object" class="btn-primary" attrs="{'invisible': [('state', '!=', 'submitted')]}" help="Duyệt bài viết này" groups="blogcreator.group_blogcreator_manager"/>
-          <!-- Nút Từ chối - hiển thị ở trạng thái đã gửi (chỉ giáo viên) -->
           <button name="action_reject" string="Từ chối" type="object" class="btn-danger" attrs="{'invisible': [('state', '!=', 'submitted')]}" help="Từ chối bài viết này" groups="blogcreator.group_blogcreator_manager"/>
-          <!-- Nút Đăng bài - hiển thị ở trạng thái đã duyệt (chỉ giáo viên) -->
           <button name="action_publish" string="Đăng bài" type="object" class="btn-success" attrs="{'invisible': [('state', '!=', 'approved')]}" help="Đăng bài viết này" groups="blogcreator.group_blogcreator_manager"/>
-          <!-- Nút Hủy bài - hiển thị ở trạng thái nháp hoặc bị từ chối -->
           <button name="action_cancel" string="Hủy bài" type="object" class="btn-secondary" attrs="{'invisible': [('state', '=', 'cancelled')]}" help="Hủy bài viết này"/>
         </header>
         <sheet>
@@ -25,27 +20,30 @@
               <field name="title" placeholder="Nhập tiêu đề..."/>
             </h1>
           </div>
-          <!-- Thumbnail Section - ĐƠN GIẢN -->
-          <div class="thumbnail-section" style="flex: 0 0 200px;">
-            <div class="text-center">
-              <label class="o_form_label">Ảnh đại diện</label>
-              <div class="thumbnail-container" style="border: 2px dashed #ddd; border-radius: 8px; padding: 10px; min-height: 150px; display: flex; align-items: center; justify-content: center;">
-                <field name="thumbnail" widget="image" class="oe_avatar" options="{'preview_image': 'thumbnail', 'size': [200, 150]}" style="max-width: 180px; max-height: 135px;"/>
+
+          <div class="row">
+            <div class="col-md-8">
+              <group>
+                <field name="note_type"/>
+                <field name="note_type_prompt" widget="text"/>
+                <field name="tags" placeholder="Ví dụ: khám phá, trải nghiệm, tự túc"/>
+                <field name="user_id"/>
+                <field name="is_published" invisible="1"/>
+                <field name="exported_to_n8n" invisible="1"/>
+                <field name="export_date" attrs="{'invisible': [('exported_to_n8n', '=', False)]}"/>
+              </group>
+            </div>
+
+            <div class="col-md-4">
+              <div class="thumbnail-section">
+                <span class="thumbnail-label">THUMBNAIL</span>
+                <div class="thumbnail-container">
+                  <field name="thumbnail" widget="image" options="{'size': [250, 200]}"/>
+                </div>
               </div>
-              <small class="text-muted">Chỉ dùng để hiển thị<br/>
-Không gửi qua AI</small>
-              <!-- LOẠI BỎ: thumbnail_filename field -->
             </div>
           </div>
-          <group>
-            <field name="note_type"/>
-            <field name="note_type_prompt" widget="text"/>
-            <field name="tags" placeholder="Ví dụ: khám phá, trải nghiệm, tự túc"/>
-            <field name="user_id"/>
-            <field name="is_published" invisible="1"/>
-            <field name="exported_to_n8n" invisible="1"/>
-            <field name="export_date" attrs="{'invisible': [('exported_to_n8n', '=', False)]}"/>
-          </group>
+
           <notebook>
             <page string="Nội dung">
               <field name="n8n_content" widget="html" options="{'collaborative': true, 'resizable': true}" class="custom-html-auto"/>

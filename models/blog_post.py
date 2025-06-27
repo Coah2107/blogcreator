@@ -100,7 +100,6 @@ class BlogNote(models.Model):
             if categories:
                 return [("general", "Chọn Thể Loại")] + categories
             else:
-                # Fallback về hardcoded list nếu chưa có categories
                 return (
                     [
                         ("general", "Chọn Thể Loại"),
@@ -326,23 +325,11 @@ class BlogNote(models.Model):
                 self.message_post(body="Đã tạo nội dung thành công")
 
                 return {
-                    "type": "ir.actions.act_window",
-                    "res_model": "blogcreator.note",
-                    "res_id": self.id,
-                    "view_mode": "form",
-                    "target": "current",
-                    "context": {
-                        "form_view_initial_mode": "edit",
-                        "force_activate_tab": "nội_dung",
-                    },
-                    "flags": {
-                        "mode": "edit",
-                        "initial_mode": "edit",
-                    },
+                    "type": "ir.actions.client",
                     "tag": "display_notification",
                     "params": {
                         "title": "Thành công",
-                        "message": "Nội dung AI đã được tạo và hiển thị trong tab Nội dung.",
+                        "message": "Bài đã được tạo và hiển thị trong tab Nội dung.",
                         "type": "success",
                         "sticky": False,
                     },
