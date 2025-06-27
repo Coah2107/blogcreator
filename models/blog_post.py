@@ -227,6 +227,7 @@ class BlogNote(models.Model):
 
                         # Tạo key từ alt hoặc image number
                         img_key = f"Image {i+1}"
+                        desc_text = img_tag.get("alt", "")
 
                         try:
                             # Upload hình ảnh lên Cloudinary
@@ -238,16 +239,19 @@ class BlogNote(models.Model):
                                 is_thumbnail=(i == 0),
                             )
 
-                            # Lấy URL từ Cloudinary
                             cloudinary_url = response.get("secure_url")
 
-                            # Lưu thumbnail URL (hình đầu tiên)
                             if i == 0 and cloudinary_url:
                                 thumbnail_url = cloudinary_url
                             else:
                                 # Thêm vào danh sách hình ảnh
                                 cloudinary_images.append(
-                                    {"url": cloudinary_url, "key": img_key, "id": i + 1}
+                                    {
+                                        "url": cloudinary_url,
+                                        "key": img_key,
+                                        "id": i + 1,
+                                        "desc": desc_text,
+                                    }
                                 )
 
                             # Thay thế hình ảnh trong text_soup với marker

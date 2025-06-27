@@ -20,9 +20,14 @@ class N8nResponse(models.Model):
     note_id = fields.Many2one(
         "blogcreator.note", string="Bài viết", required=True, ondelete="cascade"
     )
-    response_time = fields.Datetime(
-        string="Thời gian nhận phản hồi", default=fields.Datetime.now
+    user_id = fields.Many2one(
+        "res.users", 
+        string="Người tạo", 
+        related="note_id.user_id",
+        store=True,
+        readonly=True
     )
+    response_time = fields.Datetime(string="Thời gian", default=fields.Datetime.now)
     status_code = fields.Integer(string="Mã trạng thái")
     response_content = fields.Text(string="Nội dung phản hồi")
     success = fields.Boolean(

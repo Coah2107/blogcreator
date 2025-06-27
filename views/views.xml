@@ -42,7 +42,7 @@
               <field name="content" widget="html" options="{'collaborative': true, 'resizable': true}" class="custom-html-auto"/>
               <button name="create_ai_content" string="Tạo bài viết" type="object" class="btn-primary"/>
             </page>
-            <page string="Lịch sử tạo bài" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
+            <page string="Lịch sử" attrs="{'invisible': [('n8n_response_ids', '=', [])]}">
               <field name="last_n8n_response_id" invisible="1"/>
               <field name="last_n8n_status" invisible="1"/>
               <field name="last_n8n_success" invisible="1"/>
@@ -58,8 +58,9 @@
 
               <field name="n8n_response_ids" readonly="1">
                 <tree decoration-success="success" decoration-danger="not success">
-                  <field name="response_id"/>
-                  <field name="success"/>
+                  <field name="response_id" invisible="1"/>
+                  <field name="success" invisible="1"/>
+                  <field name="user_id" string="Người tạo"/>
                   <field name="response_time"/>
                 </tree>
               </field>
