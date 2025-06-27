@@ -25,6 +25,18 @@
               <field name="title" placeholder="Nhập tiêu đề..."/>
             </h1>
           </div>
+          <!-- Thumbnail Section - ĐƠN GIẢN -->
+          <div class="thumbnail-section" style="flex: 0 0 200px;">
+            <div class="text-center">
+              <label class="o_form_label">Ảnh đại diện</label>
+              <div class="thumbnail-container" style="border: 2px dashed #ddd; border-radius: 8px; padding: 10px; min-height: 150px; display: flex; align-items: center; justify-content: center;">
+                <field name="thumbnail" widget="image" class="oe_avatar" options="{'preview_image': 'thumbnail', 'size': [200, 150]}" style="max-width: 180px; max-height: 135px;"/>
+              </div>
+              <small class="text-muted">Chỉ dùng để hiển thị<br/>
+Không gửi qua AI</small>
+              <!-- LOẠI BỎ: thumbnail_filename field -->
+            </div>
+          </div>
           <group>
             <field name="note_type"/>
             <field name="note_type_prompt" widget="text"/>
