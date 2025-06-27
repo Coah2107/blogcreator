@@ -23,6 +23,7 @@
         "views/actions.xml",
         "views/menu.xml",
         "views/views.xml",
+        "views/blog_category_views.xml",
         # "data/n8n_sequence.xml",
     ],
     "installable": True,

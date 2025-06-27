@@ -22,24 +22,8 @@ class BlogNote(models.Model):
     title = fields.Char(string="Tiêu đề", required=True, tracking=True)
     content = fields.Html(string="Nội dung", tracking=True)
     note_type = fields.Selection(
-        [
-            ("general", "Chọn Thể Loại"),
-            ("culinary", "Ẩm Thực"),
-            ("entertainment", "Giải Trí"),
-            ("wellness_healing", "Sức Khỏe & Thư Giãn"),
-            ("adventure", "Phiêu Lưu & Khám Phá"),
-            ("family_friendly", "Gia Đình"),
-            ("insta_worthy", "Sống Ảo & Check-in"),
-            ("eco_friendly", "Du Lịch Xanh & Bền Vững"),
-            ("coworking_remote", "Làm Việc & Đồng Hành"),
-            ("shopping_spree", "Mua Sắm & Giải Trí"),
-            ("arts_exhibition", "Nghệ Thuật & Triển Lãm"),
-            ("spa_relaxation", "Spa & Thư Giãn"),
-            ("street_food", "Ẩm Thực Đường Phố"),
-            ("hidden_gems", "Điểm Đến Bí Ẩn"),
-            ("photography_spot", "Điểm Chụp Ảnh"),
-        ],
         string="Thể Loại",
+        selection="_get_note_type_selection",
         default="general",
         required=True,
         tracking=True,
@@ -96,35 +80,79 @@ class BlogNote(models.Model):
     last_n8n_success = fields.Boolean(
         related="last_n8n_response_id.success", string="Latest Success", store=False
     )
-
     n8n_content = fields.Html(
         string="Nội dung từ n8n",
         help="Nội dung mới nhất được trả về từ n8n",
         tracking=True,
     )
 
+    @api.model
+    def _get_note_type_selection(self):
+        """Lấy danh sách thể loại từ blogcreator.category"""
+        try:
+            categories = self.env["blogcreator.category"].get_selection_list()
+            if categories:
+                return [("general", "Chọn Thể Loại")] + categories
+            else:
+                # Fallback về hardcoded list nếu chưa có categories
+                return (
+                    [
+                        ("general", "Chọn Thể Loại"),
+                        ("culinary", "Ẩm Thực"),
+                        ("entertainment", "Giải Trí"),
+                        ("wellness_healing", "Sức Khỏe & Thư Giãn"),
+                        ("adventure", "Phiêu Lưu & Khám Phá"),
+                        ("family_friendly", "Gia Đình"),
+                        ("insta_worthy", "Sống Ảo & Check-in"),
+                        ("eco_friendly", "Du Lịch Xanh & Bền Vững"),
+                        ("coworking_remote", "Làm Việc & Đồng Hành"),
+                        ("shopping_spree", "Mua Sắm & Giải Trí"),
+                        ("arts_exhibition", "Nghệ Thuật & Triển Lãm"),
+                        ("spa_relaxation", "Spa & Thư Giãn"),
+                        ("street_food", "Ẩm Thực Đường Phố"),
+                        ("hidden_gems", "Điểm Đến Bí Ẩn"),
+                        ("photography_spot", "Điểm Chụp Ảnh"),
+                    ],
+                )
+        except Exception:
+            return [("general", "Chọn Thể Loại")]
+
+    # @api.depends("note_type")
+    # def _compute_note_type_prompt(self):
+    #     prompts = {
+    #         "general": "Vui lòng chọn thể loại phù hợp cho bài viết.",
+    #         "culinary": 'Hãy viết với phong cách kích thích giác quan, tập trung mô tả hương vị, màu sắc và mùi thơm. Sử dụng giọng điệu tỉ mỉ và hào hứng.\nGợi ý động từ: "nếm", "nhấm nháp", "thưởng thức"\nGợi ý cụm từ: "hương vị nồng nàn", "vị đậm đà", "tan chảy trong miệng"',
+    #         "entertainment": 'Hãy viết với phong cách sôi nổi, năng lượng cao, gợi tả không khí náo nhiệt, từ "nhạc sống" đến "gameshow"; phù hợp ban ngày lẫn cuộc sống về đêm.\nGợi ý cụm từ: "sôi động", "náo nhiệt", "party mood", "bùng nổ cảm xúc"',
+    #         "wellness_healing": 'Hãy viết với phong cách nhẹ nhàng, thư thái; ngôn ngữ hướng đến trải nghiệm cân bằng và chữa lành; nhịp câu chậm, có thể sử dụng dấu ba chấm để tạo cảm giác thả lỏng.\nGợi ý cụm từ: "thư giãn sâu", "hồi phục năng lượng", "cân bằng tâm trí"',
+    #         "adventure": 'Hãy viết với phong cách hứng khởi, kịch tính; sử dụng từ ngữ mạnh mẽ gợi cảm giác chinh phục; phù hợp leo núi, trekking, mạo hiểm ngoài trời.\nGợi ý cụm từ: "chinh phục đỉnh cao", "thót tim", "bứt phá", "khám phá vùng đất mới"',
+    #         "family_friendly": 'Hãy viết với phong cách ấm áp, an toàn; tạo cảm giác thoải mái cho mọi lứa tuổi; nhấn mạnh tiện nghi và không gian rộng rãi để gia đình cùng trải nghiệm.\nGợi ý cụm từ: "phù hợp trẻ em", "an toàn tuyệt đối", "không gian sum họp"',
+    #         "insta_worthy": 'Hãy viết với phong cách trẻ trung, trend-hungry; dùng hashtag và emoji; ngôn từ khơi gợi cảm hứng sống ảo, chú trọng background và ánh sáng.\nGợi ý cụm từ: "#travelgoals", "background triệu like", "góc sống ảo", "check-in hot nhất"',
+    #         "eco_friendly": 'Hãy viết với phong cách thân thiện môi trường; ngôn ngữ thể hiện trách nhiệm xã hội, kêu gọi bảo tồn; dùng từ "zero-waste", "sinh thái", "bảo tồn".\nGợi ý cụm từ: "hạn chế rác thải", "hòa mình thiên nhiên", "phát triển bền vững"',
+    #         "coworking_remote": 'Hãy viết với phong cách chuyên nghiệp, thực dụng; tập trung vào hiệu quả làm việc: "wifi mạnh", "ổ cắm đủ", "không gian yên tĩnh"; phù hợp freelance & remote.\nGợi ý cụm từ: "wifi 500Mbps", "quiet zone", "không gian làm việc lý tưởng"',
+    #         "shopping_spree": 'Hãy viết với phong cách hào hứng, khơi gợi thú săn lùng ưu đãi; ngôn từ thể hiện xu hướng thời trang, sale hấp dẫn và trải nghiệm mua sắm năng động.\nGợi ý cụm từ: "sale off", "must-have item", "săn deal hot", "giảm giá sốc"',
+    #         "arts_exhibition": 'Hãy viết với phong cách trí thức, sâu sắc; ngôn từ mỹ thuật, nhấn mạnh chi tiết tác phẩm, ý tưởng & cảm nhận nghệ thuật.\nGợi ý cụm từ: "chất liệu sơn dầu", "installation art", "composition tinh tế", "triển lãm độc đáo"',
+    #         "spa_relaxation": 'Hãy viết với phong cách nhẹ nhàng, thanh bình; ngôn ngữ miêu tả thư giãn sâu sắc, chăm sóc cơ thể & tinh thần.\nGợi ý cụm từ: "tinh dầu lavender", "massaging flow", "xông hơi đá muối", "liệu pháp thư giãn"',
+    #         "street_food": 'Hãy viết với phong cách sinh động, chân thật; tái hiện mùi vị, âm thanh & không gian đặc trưng của hàng rong, xiên nướng, cháo lòng…\nGợi ý cụm từ: "xiên nướng thơm lừng", "tiếng xèo xèo", "hương vị đường phố", "quán vỉa hè"',
+    #         "hidden_gems": 'Hãy viết với phong cách bí ẩn, khơi gợi tò mò; mô tả yếu tố bất ngờ, hoang sơ, ít người biết đến.\nGợi ý cụm từ: "ẩn mình", "chưa lên bản đồ", "hoang sơ tuyệt đối", "địa điểm bí mật"',
+    #         "photography_spot": 'Hãy viết với phong cách chuyên môn nhiếp ảnh; ngôn ngữ tập trung vào ánh sáng, góc chụp, cảm hứng sáng tạo và kỹ thuật.\nGợi ý cụm từ: "golden hour", "depth of field", "wide-angle shot", "góc chụp đẹp nhất"',
+    #     }
+
+    #     for record in self:
+    #         record.note_type_prompt = prompts.get(record.note_type, "")
+
     @api.depends("note_type")
     def _compute_note_type_prompt(self):
-        prompts = {
-            "general": "Vui lòng chọn thể loại phù hợp cho bài viết.",
-            "culinary": 'Hãy viết với phong cách kích thích giác quan, tập trung mô tả hương vị, màu sắc và mùi thơm. Sử dụng giọng điệu tỉ mỉ và hào hứng.\nGợi ý động từ: "nếm", "nhấm nháp", "thưởng thức"\nGợi ý cụm từ: "hương vị nồng nàn", "vị đậm đà", "tan chảy trong miệng"',
-            "entertainment": 'Hãy viết với phong cách sôi nổi, năng lượng cao, gợi tả không khí náo nhiệt, từ "nhạc sống" đến "gameshow"; phù hợp ban ngày lẫn cuộc sống về đêm.\nGợi ý cụm từ: "sôi động", "náo nhiệt", "party mood", "bùng nổ cảm xúc"',
-            "wellness_healing": 'Hãy viết với phong cách nhẹ nhàng, thư thái; ngôn ngữ hướng đến trải nghiệm cân bằng và chữa lành; nhịp câu chậm, có thể sử dụng dấu ba chấm để tạo cảm giác thả lỏng.\nGợi ý cụm từ: "thư giãn sâu", "hồi phục năng lượng", "cân bằng tâm trí"',
-            "adventure": 'Hãy viết với phong cách hứng khởi, kịch tính; sử dụng từ ngữ mạnh mẽ gợi cảm giác chinh phục; phù hợp leo núi, trekking, mạo hiểm ngoài trời.\nGợi ý cụm từ: "chinh phục đỉnh cao", "thót tim", "bứt phá", "khám phá vùng đất mới"',
-            "family_friendly": 'Hãy viết với phong cách ấm áp, an toàn; tạo cảm giác thoải mái cho mọi lứa tuổi; nhấn mạnh tiện nghi và không gian rộng rãi để gia đình cùng trải nghiệm.\nGợi ý cụm từ: "phù hợp trẻ em", "an toàn tuyệt đối", "không gian sum họp"',
-            "insta_worthy": 'Hãy viết với phong cách trẻ trung, trend-hungry; dùng hashtag và emoji; ngôn từ khơi gợi cảm hứng sống ảo, chú trọng background và ánh sáng.\nGợi ý cụm từ: "#travelgoals", "background triệu like", "góc sống ảo", "check-in hot nhất"',
-            "eco_friendly": 'Hãy viết với phong cách thân thiện môi trường; ngôn ngữ thể hiện trách nhiệm xã hội, kêu gọi bảo tồn; dùng từ "zero-waste", "sinh thái", "bảo tồn".\nGợi ý cụm từ: "hạn chế rác thải", "hòa mình thiên nhiên", "phát triển bền vững"',
-            "coworking_remote": 'Hãy viết với phong cách chuyên nghiệp, thực dụng; tập trung vào hiệu quả làm việc: "wifi mạnh", "ổ cắm đủ", "không gian yên tĩnh"; phù hợp freelance & remote.\nGợi ý cụm từ: "wifi 500Mbps", "quiet zone", "không gian làm việc lý tưởng"',
-            "shopping_spree": 'Hãy viết với phong cách hào hứng, khơi gợi thú săn lùng ưu đãi; ngôn từ thể hiện xu hướng thời trang, sale hấp dẫn và trải nghiệm mua sắm năng động.\nGợi ý cụm từ: "sale off", "must-have item", "săn deal hot", "giảm giá sốc"',
-            "arts_exhibition": 'Hãy viết với phong cách trí thức, sâu sắc; ngôn từ mỹ thuật, nhấn mạnh chi tiết tác phẩm, ý tưởng & cảm nhận nghệ thuật.\nGợi ý cụm từ: "chất liệu sơn dầu", "installation art", "composition tinh tế", "triển lãm độc đáo"',
-            "spa_relaxation": 'Hãy viết với phong cách nhẹ nhàng, thanh bình; ngôn ngữ miêu tả thư giãn sâu sắc, chăm sóc cơ thể & tinh thần.\nGợi ý cụm từ: "tinh dầu lavender", "massaging flow", "xông hơi đá muối", "liệu pháp thư giãn"',
-            "street_food": 'Hãy viết với phong cách sinh động, chân thật; tái hiện mùi vị, âm thanh & không gian đặc trưng của hàng rong, xiên nướng, cháo lòng…\nGợi ý cụm từ: "xiên nướng thơm lừng", "tiếng xèo xèo", "hương vị đường phố", "quán vỉa hè"',
-            "hidden_gems": 'Hãy viết với phong cách bí ẩn, khơi gợi tò mò; mô tả yếu tố bất ngờ, hoang sơ, ít người biết đến.\nGợi ý cụm từ: "ẩn mình", "chưa lên bản đồ", "hoang sơ tuyệt đối", "địa điểm bí mật"',
-            "photography_spot": 'Hãy viết với phong cách chuyên môn nhiếp ảnh; ngôn ngữ tập trung vào ánh sáng, góc chụp, cảm hứng sáng tạo và kỹ thuật.\nGợi ý cụm từ: "golden hour", "depth of field", "wide-angle shot", "góc chụp đẹp nhất"',
-        }
-
-        for record in self:
-            record.note_type_prompt = prompts.get(record.note_type, "")
+        """Lấy prompt từ blogcreator.category"""
+        try:
+            prompt_dict = self.env["blogcreator.category"].get_prompt_dict()
+            for record in self:
+                record.note_type_prompt = prompt_dict.get(
+                    record.note_type, "Vui lòng chọn thể loại phù hợp cho bài viết."
+                )
+        except Exception:
+            # Fallback về hardcoded prompts
+            for record in self:
+                record.note_type_prompt = "Vui lòng chọn thể loại phù hợp cho bài viết."
 
     @api.depends("n8n_response_ids")
     def _compute_last_response(self):
@@ -216,11 +244,11 @@ class BlogNote(models.Model):
                             # Lưu thumbnail URL (hình đầu tiên)
                             if i == 0 and cloudinary_url:
                                 thumbnail_url = cloudinary_url
-
-                            # Thêm vào danh sách hình ảnh
-                            cloudinary_images.append(
-                                {"url": cloudinary_url, "key": img_key, "id": i + 1}
-                            )
+                            else:
+                                # Thêm vào danh sách hình ảnh
+                                cloudinary_images.append(
+                                    {"url": cloudinary_url, "key": img_key, "id": i + 1}
+                                )
 
                             # Thay thế hình ảnh trong text_soup với marker
                             marker = text_soup.new_string(f"({img_key})")
@@ -264,22 +292,18 @@ class BlogNote(models.Model):
                 "id": self.id,
                 "title": self.title,
                 "content": plain_text_with_markers,
-                "note_type": dict(self._fields["note_type"].selection).get(
-                    self.note_type
-                ),
+                "note_type_prompt": self.note_type_prompt,
                 "tags": self.tags,
                 "create_date": fields.Datetime.to_string(self.create_date),
                 "user": self.env.user.name,
                 "thumbnail": thumbnail_url,
                 "content_images": cloudinary_images,
-                "ai_content_only": True,  # Thêm flag để n8n biết đây là yêu cầu chỉ tạo nội dung
             }
 
-            # Thêm debug info nếu cần
             include_debug = (
                 self.env["ir.config_parameter"]
                 .sudo()
-                .get_param("blogcreator.include_debug_info", "False")
+                .get_param("blogcreator.include_debug_info", "True")
                 .lower()
                 == "true"
             )

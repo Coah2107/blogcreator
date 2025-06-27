@@ -50,4 +50,20 @@
             </p>
         </field>
     </record>
+
+    <!-- Blog Category Action -->
+    <record id="action_blog_category" model="ir.actions.act_window">
+        <field name="name">Quản lý thể loại</field>
+        <field name="res_model">blogcreator.category</field>
+        <field name="view_mode">kanban,tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Tạo thể loại bài viết mới
+            </p>
+            <p>
+                Quản lý các thể loại bài viết và ngữ điệu viết tương ứng.
+                Chỉ giáo viên mới có quyền thay đổi.
+            </p>
+        </field>
+    </record>
 </odoo>
