@@ -31,8 +31,10 @@
     "assets": {
         "web.assets_backend": [
             "blogcreator/static/src/js/wysiwyg_extend.js",
+            "blogcreator/static/src/js/dark_mode_toggle.js",
             "blogcreator/static/src/css/image_kanban_custom.css",
             "blogcreator/static/src/css/note_content.css",
+            "blogcreator/static/src/css/dark_mode.css",
         ],
     },
 }

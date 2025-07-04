@@ -58,3 +58,12 @@ venv.bak/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Temporary files
+/tmp/
+temp/
+*.tmp
+*.temp
+
+# Browser test files
+dark_mode_test.html
