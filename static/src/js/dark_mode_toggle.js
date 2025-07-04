@@ -24,14 +24,23 @@ odoo.define('blogcreator.dark_mode_toggle', function (require) {
          * Get the stored theme from localStorage
          */
         getStoredTheme: function () {
-            return localStorage.getItem('odoo_blogcreator_theme') || 'light';
+            try {
+                return localStorage.getItem('odoo_blogcreator_theme') || this.getSystemTheme();
+            } catch (e) {
+                console.warn('localStorage not available, using system theme');
+                return this.getSystemTheme();
+            }
         },
 
         /**
          * Store the theme in localStorage
          */
         setStoredTheme: function (theme) {
-            localStorage.setItem('odoo_blogcreator_theme', theme);
+            try {
+                localStorage.setItem('odoo_blogcreator_theme', theme);
+            } catch (e) {
+                console.warn('Cannot save theme preference: localStorage not available');
+            }
         },
 
         /**
